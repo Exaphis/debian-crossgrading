@@ -1,0 +1,7 @@
+#! /bin/bash
+
+. /usr/share/initramfs-tools/hook-functions
+
+if command -v reiserfsck >/dev/null 2>&1; then
+  copy_exec /sbin/reiserfsck sbin/reiserfsck
+fi
