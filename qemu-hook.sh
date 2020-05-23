@@ -38,17 +38,17 @@ copy_package() {
 
   cd "${unzip_dir}"
 
-  if [ "${initramfs_dir}" == "." ]; then
-    if [ "${copy_all}" -eq 1 ]; then
-      find . -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
-    else
-      find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
-    fi
-  else
+  if [ "${initramfs_dir}" = "." ]; then
     if [ "${copy_all}" -eq 1 ]; then
       find . -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
     else
       find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
+    fi
+  else
+    if [ "${copy_all}" -eq 1 ]; then
+      find . -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
+    else
+      find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
     fi
   fi
 
@@ -78,11 +78,8 @@ chown _apt "${download_dir}"
 target_arch="arm64"
 copy_package binfmt-support . 0
 copy_package qemu-user-static . 0
-copy_package qemu-user-binfmt . 1
 
 target_arch="amd64"
 copy_package busybox-static busybox-amd64 0
-
-copy_exec /bin/file bin
 
 rm -r "${download_dir}"
