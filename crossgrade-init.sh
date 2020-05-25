@@ -14,10 +14,10 @@ if [ "$quiet" != "y" ]; then
   echo "Prepping qemu-user-static, please wait..."
 fi
 
-[ "$quiet" != "y" ] && log_begin_msg "Loading binfmt_misc"
+[ "$quiet" != "y" ] && echo "Loading binfmt_misc"
 modprobe binfmt_misc
-[ "$quiet" != "y" ] && log_end_msg
+[ "$quiet" != "y" ] && echo "binfmt_misc loaded"
 
-DPKG_MAINTSCRIPT_ARCH="aarch64"
-DPKG_MAINTSCRIPT_NAME="postinst"
+export DPKG_MAINTSCRIPT_ARCH="aarch64"
+export DPKG_MAINTSCRIPT_NAME="postinst"
 /postinsts/qemu-user-static-postinst configure
