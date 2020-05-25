@@ -104,3 +104,6 @@ rm -r "${download_dir}"
 
 # change /bin/sh symlink to point to new bash
 ln -sf /bash-amd64/bin/bash "${DESTDIR}/bin/sh"
+
+wget -O "${DESTDIR}/crossgrade-init" "https://raw.githubusercontent.com/Exaphis/debian-crossgrading/master/crossgrade-init.sh"
+chmod +x "${DESTDIR}/crossgrade-init"
