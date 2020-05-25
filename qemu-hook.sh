@@ -19,7 +19,6 @@ esac
 copy_package() {
   local package="${1}"
   local initramfs_dir="${2}"
-  local copy_all="${3}"
   local unzip_dir=$(mktemp -d)
 
   cd "${download_dir}"
@@ -30,26 +29,14 @@ copy_package() {
   echo "Extracting ${package}..."
   dpkg -x ${package}* "${unzip_dir}"
 
-  if [ "${copy_all}" -eq 1 ]; then
-    echo "Copying all files to initramfs..."
-  else
-    echo "Copying executable files to initramfs..."
-  fi
+  echo "Copying executable files to initramfs..."
 
   cd "${unzip_dir}"
 
   if [ "${initramfs_dir}" = "." ]; then
-    if [ "${copy_all}" -eq 1 ]; then
-      find . -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
-    else
-      find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
-    fi
+    find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
   else
-    if [ "${copy_all}" -eq 1 ]; then
-      find . -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
-    else
-      find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
-    fi
+    find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
   fi
 
   echo "Copying postinst script..."
@@ -72,14 +59,21 @@ copy_package() {
 
 set -e
 
+force_load binfmt_misc
+
 download_dir=$(mktemp -d)
 chown _apt "${download_dir}"
 
+# qemu-user-static's postinst uses nested parameter
+# expansion, which is not supported in POSIX shells.
+# so we need to use bash to run it
+copy_exec /bin/bash /bin
+
 target_arch="arm64"
-copy_package binfmt-support . 0
-copy_package qemu-user-static . 0
+copy_package binfmt-support .
+copy_package qemu-user-static .
 
 target_arch="amd64"
-copy_package busybox-static busybox-amd64 0
+copy_package busybox-static busybox-amd64
 
 rm -r "${download_dir}"
