@@ -20,4 +20,5 @@ modprobe binfmt_misc
 
 export DPKG_MAINTSCRIPT_ARCH="aarch64"
 export DPKG_MAINTSCRIPT_NAME="postinst"
+mkdir -p /var/lib/binfmts
 /postinsts/qemu-user-static-postinst configure
