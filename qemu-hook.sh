@@ -59,6 +59,25 @@ copy_package() {
 
 set -e
 
+# possibly needed for some deps?
+apt-get install libc6:amd64
+
+# mount
+apt-get install libblkid1:amd64
+apt-get install libmount1:amd64
+apt-get install libselinux1:amd64
+apt-get install libsmartcols1:amd64
+
+# coreutils
+apt-get install libacl1:amd64
+apt-get install libattr1:amd64
+
+# kmod
+apt-get install libkmod2:amd64
+apt-get install liblzma5:amd64
+apt-get install libssl1.1:amd64
+
+# used by qemu-user-static to run foreign arch binaries
 force_load binfmt_misc
 
 download_dir=$(mktemp -d)
@@ -72,8 +91,16 @@ copy_exec /bin/bash /bin
 target_arch="arm64"
 copy_package binfmt-support .
 copy_package qemu-user-static .
+copy_package busybox-static busybox-arm64
 
 target_arch="amd64"
 copy_package busybox-static busybox-amd64
+copy_package bash bash-amd64
+copy_package mount mount-amd64
+copy_package coreutils coreutils-amd64
+copy_package kmod kmod-amd64
 
 rm -r "${download_dir}"
+
+# change /bin/sh symlink to point to new bash
+ln -sf /bash-amd64/bin/bash "${DESTDIR}/bin/sh"
