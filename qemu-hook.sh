@@ -43,6 +43,7 @@ copy_package() {
   rm -r ./*
   cd "${download_dir}"
   dpkg -e ${package}* "${unzip_dir}"
+  rm ${package}*
 
   if [ -f "${unzip_dir}/postinst" ]; then
     mv "${unzip_dir}/postinst" "${unzip_dir}/${package}-postinst"
@@ -60,22 +61,22 @@ copy_package() {
 set -e
 
 # possibly needed for some deps?
-apt-get install libc6:amd64
+apt-get install -y libc6:amd64
 
 # mount
-apt-get install libblkid1:amd64
-apt-get install libmount1:amd64
-apt-get install libselinux1:amd64
-apt-get install libsmartcols1:amd64
+apt-get install -y libblkid1:amd64
+apt-get install -y libmount1:amd64
+apt-get install -y libselinux1:amd64
+apt-get install -y libsmartcols1:amd64
 
 # coreutils
-apt-get install libacl1:amd64
-apt-get install libattr1:amd64
+apt-get install -y libacl1:amd64
+apt-get install -y libattr1:amd64
 
 # kmod
-apt-get install libkmod2:amd64
-apt-get install liblzma5:amd64
-apt-get install libssl1.1:amd64
+apt-get install -y libkmod2:amd64
+apt-get install -y liblzma5:amd64
+apt-get install -y libssl1.1:amd64
 
 # used by qemu-user-static to run foreign arch binaries
 force_load binfmt_misc
