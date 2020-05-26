@@ -77,7 +77,7 @@ set -e
 # to detect shared libraries
 ldd_bak_dir=$(mktemp -d)
 cp /bin/ldd "${ldd_bak_dir}/ldd.bak"
-sed '/^RTLDLIST=.*/a RTLDLIST="${RTLDLIST} /lib64/ld-linux-x86-64.so.2' /bin/ldd
+sed '/^RTLDLIST=.*/a RTLDLIST="${RTLDLIST} /lib64/ld-linux-x86-64.so.2"' /bin/ldd
 
 # possibly needed for some deps?
 apt-get install -y libc6:amd64
