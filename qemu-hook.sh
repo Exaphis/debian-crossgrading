@@ -16,10 +16,22 @@ esac
 
 . /usr/share/initramfs-tools/hook-functions
 
+cleanup() {
+  [ -z "${download_dir}" ] && rm -r "${download_dir}"
+  [ -z "${unzip_dir}" ] && rm -r "${unzip_dir}"
+
+  if [ -z "${ldd_bak_dir}" ]; then
+    mv "${ldd_bak_dir}/ldd.bak" /bin/ldd
+    rm -r "${ldd_bak_dir}"
+  fi
+}
+
+trap cleanup EXIT
+
 copy_package() {
-  local package="${1}"
-  local initramfs_dir="${2}"
-  local unzip_dir=$(mktemp -d)
+  package="${1}"
+  initramfs_dir="${2}"
+  unzip_dir=$(mktemp -d)
 
   cd "${download_dir}"
 
@@ -27,7 +39,7 @@ copy_package() {
   apt-get download "${package}:${target_arch}"
 
   echo "Extracting ${package}..."
-  dpkg -x ${package}* "${unzip_dir}"
+  dpkg -x "${package}"* "${unzip_dir}"
 
   echo "Copying executable files to initramfs..."
 
@@ -36,14 +48,14 @@ copy_package() {
   if [ "${initramfs_dir}" = "." ]; then
     find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${dest}"; echo "Copied ${1} to /${dest}."' _ {} \;
   else
-    find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} ${initramfs_dir} \;
+    find . -executable -type f -exec sh -c '. /usr/share/initramfs-tools/hook-functions; dest=${1#./}; copy_exec "${1}" "${2}/${dest}"; echo "Copied ${1} to /${2}/${dest}."' _ {} "${initramfs_dir}" \;
   fi
 
   echo "Copying postinst script..."
   rm -r ./*
   cd "${download_dir}"
-  dpkg -e ${package}* "${unzip_dir}"
-  rm ${package}*
+  dpkg -e "${package}"* "${unzip_dir}"
+  rm "${package}"*
 
   if [ -f "${unzip_dir}/postinst" ]; then
     mv "${unzip_dir}/postinst" "${unzip_dir}/${package}-postinst"
@@ -56,9 +68,16 @@ copy_package() {
   echo "${package} copied."
   echo ""
   rm -r "${unzip_dir}"
+  unzip_dir=""
 }
 
 set -e
+
+# add dynamic linker for amd64 to ldd
+# to detect shared libraries
+ldd_bak_dir=$(mktemp -d)
+cp /bin/ldd "${ldd_bak_dir}/ldd.bak"
+sed '/^RTLDLIST=.*/a RTLDLIST="${RTLDLIST} /lib64/ld-linux-x86-64.so.2' /bin/ldd
 
 # possibly needed for some deps?
 apt-get install -y libc6:amd64
@@ -101,9 +120,8 @@ copy_package mount mount-amd64
 copy_package coreutils coreutils-amd64
 copy_package kmod kmod-amd64
 
-rm -r "${download_dir}"
-
 # change /bin/sh symlink to point to new bash
+# so init script can be run in new arch
 ln -sf /bash-amd64/bin/bash "${DESTDIR}/bin/sh"
 
 wget -O "${DESTDIR}/crossgrade-init" "https://raw.githubusercontent.com/Exaphis/debian-crossgrading/master/crossgrade-init.sh"
