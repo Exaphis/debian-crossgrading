@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 current_arch = subprocess.check_output(['dpkg', '--print-architecture']).strip()
 target_arch = b'arm64'
@@ -8,9 +9,15 @@ packages = subprocess.check_output(['dpkg-query', '-f', '${Package}\t${Architect
 crossgrade_targets = []
 for package in packages:
     name, arch, status = package.split(b'\t')
-    if status == b'install ok installed' and arch != target_arch:
+    if status == b'install ok installed' and arch != target_arch and arch != b'all':
         # must specify arch for packages installed in multiple architectures
-        files = subprocess.check_output(['dpkg-query', '-L', name + b':' + arch]).splitlines()
+        full_name = name + b':' + arch
+        files = subprocess.check_output(['dpkg-query', '-L', full_name]).splitlines()
         if any(f.startswith(b'/usr/share/initramfs-tools/hooks') for f in files):
-            print(name)
+            crossgrade_targets.append(name + b':' + target_arch)
+
+print(f'{len(crossgrade_targets)} targets found.')
+for package in crossgrade_targets:
+    print(f'Crossgrading {package.decode('ascii')}...')
+    subprocess.check_call(['apt-get', 'install', package, '-y'], stdout=sys.stdout, stderr=sys.stderr)
 
