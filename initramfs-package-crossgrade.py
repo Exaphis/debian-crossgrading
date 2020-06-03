@@ -17,7 +17,6 @@ for package in packages:
             crossgrade_targets.append(name + b':' + target_arch)
 
 print(f'{len(crossgrade_targets)} targets found.')
-for package in crossgrade_targets:
-    print(f'Crossgrading {package.decode('ascii')}...')
-    subprocess.check_call(['apt-get', 'install', package, '-y'], stdout=sys.stdout, stderr=sys.stderr)
+print(crossgrade_targets)
+subprocess.check_call(['apt-get', 'install', crossgrade_targets, '-y'], stdout=sys.stdout, stderr=sys.stderr)
 
