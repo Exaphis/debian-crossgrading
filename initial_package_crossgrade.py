@@ -1,6 +1,7 @@
 import argparse
 from collections import defaultdict
 from glob import glob
+import os
 import subprocess
 import sys
 
@@ -15,8 +16,19 @@ def crossgrade(targets):
     subprocess.check_call(['apt-get', 'clean'])
 
     # call apt to cache .debs for package and dependencies
-    subprocess.check_call(['apt-get', '--download-only', 'install', *targets, '-y'],
+    # download one at a time to prevent apt from complaining due
+    # to not being able to resolve breakages
+    for target in targets:
+        subprocess.check_call(['apt-get', '--download-only', 'install', target, '-y'],
+                              stdout=sys.stdout, stderr=sys.stderr)
+
+    # install all libraries first so qemu can run the foreign binaries
+    subprocess.check_call(['dpkg', '-i', '--force-depends',
+                           *glob('/var/cache/apt/archives/lib*.deb')],
                           stdout=sys.stdout, stderr=sys.stderr)
+
+    for deb in glob('/var/cache/apt/archives/lib*.deb'):
+        os.remove(deb)
 
     # crossgrade in one dpkg call to prevent repeat triggers
     # (e.g. initramfs rebuild), which saves time
