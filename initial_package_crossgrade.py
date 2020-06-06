@@ -1,3 +1,4 @@
+import argparse
 from collections import defaultdict
 from glob import glob
 import subprocess
@@ -5,6 +6,11 @@ import sys
 
 
 def crossgrade(targets):
+    """Crossgrades each package listed in targets
+
+    :param targets: list of packages to crossgrade
+    """
+
     # clean apt-get cache (/var/cache/apt/archives)
     subprocess.check_call(['apt-get', 'clean'])
 
@@ -25,8 +31,15 @@ def crossgrade(targets):
     subprocess.check_call(['dpkg', '-i', '--force-depends', '/var/cache/apt/archives/*.deb'],
                           stdout=sys.stdout, stderr=sys.stderr)
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('target_arch', help='Target architecture of the crossgrade')
+parser.add_argument('-s', '--simulate', help='No action; perform a simulation of what would happen',
+                    action='store_true')
+args = parser.parse_args()
+
 CURRENT_ARCH = subprocess.check_output(['dpkg', '--print-architecture'], encoding='UTF-8')
-TARGET_ARCH = 'arm64'
+TARGET_ARCH = args.target_arch
 
 packages = subprocess.check_output(['dpkg-query', '-f',
                                     '${Package}\t${Architecture}\t${Status}\t${Essential}\n',
@@ -83,4 +96,10 @@ if len(unaccounted_hooks) > 0:
 else:
     print(f'{len(crossgrade_targets)} targets found.')
     print(crossgrade_targets)
-    # crossgrade(crossgrade_targets)
+
+    if not args.simulate:
+        cont = input('Do you want to continue [Y/n]? ').lower()
+        if cont in ('', 'y'):
+            crossgrade(crossgrade_targets)
+        else:
+            print('Aborted.')
