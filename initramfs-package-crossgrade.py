@@ -31,6 +31,13 @@ else:
     print(f'{len(crossgrade_targets)} targets found.')
     print(crossgrade_targets)
 
-    # crossgrade in one command to prevent repeat triggers (e.g. initramfs rebuild) to save time
-    subprocess.check_call(['apt-get', 'install', *crossgrade_targets, '-y'], stdout=sys.stdout, stderr=sys.stderr)
+    # clean apt-get cache
+    subprocess.check_call(['apt-get', 'clean'])
+
+    # call apt to cache .deb for package and dependencies
+    # crossgrade in one command to prevent repeat triggers (e.g. initramfs rebuild), which saves time
+    # dpkg performs the crossgrade (why? https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html, unsure if this is up-to-date)
+    # use the --force-depends option to avoid having to topologically sort the packages to see which to install first based on dependencies
+    subprocess.check_call(['apt-get', '--download-only', 'install', *crossgrade_targets, '-y'], stdout=sys.stdout, stderr=sys.stderr)
+    subprocess.check_call(['dpkg', '-i', '--force-depends', '/var/cache/apt/archives/*.deb'], stdout=sys.stdout, stderr=sys.stderr)
 
