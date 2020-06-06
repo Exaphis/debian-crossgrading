@@ -26,9 +26,8 @@ def crossgrade(targets):
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
     # use the --force-depends option to avoid having to topologically
-
     # sort the packages to see which to install first based on dependencies
-    subprocess.check_call(['dpkg', '-i', '--force-depends', '/var/cache/apt/archives/*.deb'],
+    subprocess.check_call(['dpkg', '-i', '--force-depends', *glob('/var/cache/apt/archives/*.deb')],
                           stdout=sys.stdout, stderr=sys.stderr)
 
 
@@ -77,16 +76,17 @@ for package in hook_packages:
     # current assumption: it outputs both as name:arch
     if ':' in name:
         full_name = name
+        name = name[:name.index(':')]
     else:
         full_name = package_candidates[name][0]
 
     if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
-        crossgrade_targets.add(full_name)
+        crossgrade_targets.add(f'{name}:{TARGET_ARCH}')
 
 # crossgrade all essential packages to be able to finish crossgrade after reboot
 for package, info in package_info.items():
     if info['is_essential'] and info['arch'] not in ('all', TARGET_ARCH):
-        crossgrade_targets.add(package)
+        crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
