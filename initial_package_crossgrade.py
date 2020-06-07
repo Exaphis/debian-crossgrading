@@ -22,24 +22,15 @@ def crossgrade(targets):
         subprocess.check_call(['apt-get', '--download-only', 'install', target, '-y'],
                               stdout=sys.stdout, stderr=sys.stderr)
 
-    # install all libraries first so qemu can run the foreign binaries
-    subprocess.check_call(['dpkg', '-i', '--force-depends',
-                           *glob('/var/cache/apt/archives/lib*.deb')],
-                          stdout=sys.stdout, stderr=sys.stderr)
-
-    for deb in glob('/var/cache/apt/archives/lib*.deb'):
-        os.remove(deb)
-
-    # crossgrade in one dpkg call to prevent repeat triggers
+    # crossgrade in one call to prevent repeat triggers
     # (e.g. initramfs rebuild), which saves time
 
     # use dpkg to perform the crossgrade
     # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
-    # use the --force-depends option to avoid having to topologically
-    # sort the packages to see which to install first based on dependencies
-    subprocess.check_call(['dpkg', '-i', '--force-depends', *glob('/var/cache/apt/archives/*.deb')],
+    # use gdebi because it installs dependencies first
+    subprocess.check_call(['gdebi', '-n', *glob('/var/cache/apt/archives/*.deb')],
                           stdout=sys.stdout, stderr=sys.stderr)
 
 
@@ -99,6 +90,9 @@ for package in hook_packages:
 for package, info in package_info.items():
     if info['is_essential'] and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
+
+if 'gdebi:all' not in package_info:
+    sys.exit('gdebi is not installed')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
