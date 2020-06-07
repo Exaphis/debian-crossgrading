@@ -1,7 +1,6 @@
 import argparse
 from collections import defaultdict
 from glob import glob
-import os
 import subprocess
 import sys
 
