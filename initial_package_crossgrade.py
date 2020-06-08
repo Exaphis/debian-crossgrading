@@ -28,9 +28,12 @@ def crossgrade(targets):
     # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
-    # use gdebi because it installs dependencies first
-    subprocess.check_call(['gdebi', '-n', *glob('/var/cache/apt/archives/*.deb')],
-                          stdout=sys.stdout, stderr=sys.stderr)
+    for target in targets:
+        if ':' in target:
+            target = target[:target.index(':')]
+        # use gdebi because it installs dependencies first
+        subprocess.check_call(['gdebi', '-n', *glob(f'/var/cache/apt/archives/{target}*.deb')],
+                              stdout=sys.stdout, stderr=sys.stderr)
 
 
 parser = argparse.ArgumentParser()
@@ -89,9 +92,6 @@ for package in hook_packages:
 for package, info in package_info.items():
     if info['is_essential'] and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
-
-if 'gdebi:all' not in package_info:
-    sys.exit('gdebi is not installed')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')

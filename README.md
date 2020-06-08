@@ -8,6 +8,8 @@ The official project can be found at https://summerofcode.withgoogle.com/project
 
 - [x] Crossgrading initramfs packages
 - [ ] Rebooting into a non-broken state
+    - [x] Use gdebi to install packages
+    - [ ] Install packages w/ topological sort instead of gdebi
 - [ ] Crossgrading final packages
 
 ## Notes
