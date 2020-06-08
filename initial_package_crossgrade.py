@@ -1,9 +1,68 @@
+from apt.debfile import DebPackage
 import argparse
 from collections import defaultdict
+from enum import Enum
 from glob import glob
 import subprocess
 import sys
 
+# TODO: Use logging
+
+def topo_sort(deb_folder):
+    def visit(deb_package):
+        # ignore cyclic dependencies (ex. libc6/libgcc1)
+
+        curr_name = deb_package.pkgname
+        print(f'visit {curr_name}')
+        print(f'\tmarked:{str(marked)}')
+        print(f'\tunmarked:{str(unmarked)}')
+        print(f'\ttemp:{str(temp_marked)}')
+        if curr_name in marked or curr_name in temp_marked:
+            return
+        if curr_name not in unmarked:
+            # package not downloaded, but ignore for now because it could be preinstalled
+            return
+
+        unmarked.discard(curr_name)
+        temp_marked.add(curr_name)
+
+        for depend in deb_package.depends:
+            for pkg_name, _, _ in depend:
+                # package not downloaded, but ignore for now because it could be preinstalled
+                if pkg_name not in pkgname_deb_map:
+                    continue
+
+                visit(pkgname_deb_map[pkg_name])
+
+        temp_marked.discard(curr_name)
+        marked.add(curr_name)
+        output.append(deb_package.filename)
+
+        return
+
+    # TODO: same package, multiple arch support
+    pkgname_deb_map = {}
+    debs = []
+    for package in glob(f'{deb_folder}/*.deb'):
+        deb = DebPackage(package)
+
+        assert deb.pkgname not in pkgname_deb_map
+        pkgname_deb_map[deb.pkgname] = deb
+        debs.append(deb)
+
+    unmarked = set(pkgname_deb_map.keys())
+    marked = set()
+    temp_marked = set()
+    output = []
+    while unmarked or temp_marked:
+        # select node in marked
+        for to_visit in unmarked:
+            break
+
+        visit(pkgname_deb_map[to_visit])
+        print('---')
+
+    return output
 
 def crossgrade(targets):
     """Crossgrades each package listed in targets
@@ -21,6 +80,14 @@ def crossgrade(targets):
         subprocess.check_call(['apt-get', '--download-only', 'install', target, '-y'],
                               stdout=sys.stdout, stderr=sys.stderr)
 
+    # topologically sort packages to install in correct order
+    # --force-depends breaks some packages because their dependency is used
+    # to initialize the package
+    debs_to_install = topo_sort('/var/cache/apt/archives')
+
+    print(debs_to_install)
+    print(f'dpkg -i {" ".join(debs_to_install)}')
+
     # crossgrade in one call to prevent repeat triggers
     # (e.g. initramfs rebuild), which saves time
 
@@ -28,13 +95,12 @@ def crossgrade(targets):
     # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
-    for target in targets:
-        if ':' in target:
-            target = target[:target.index(':')]
-        # use gdebi because it installs dependencies first
-        subprocess.check_call(['gdebi', '-n', *glob(f'/var/cache/apt/archives/{target}*.deb')],
-                              stdout=sys.stdout, stderr=sys.stderr)
+    # for target in targets:
+    #     subprocess.check_call(['dpkg', '-i', *debs_to_install],
+    #                           stdout=sys.stdout, stderr=sys.stderr)
 
+crossgrade(['bash:arm64'])
+exit()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('target_arch', help='Target architecture of the crossgrade')
