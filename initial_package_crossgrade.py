@@ -14,44 +14,53 @@ def crossgrade(targets):
 
 
     def install_packages(packages_to_install):
-        # unfeasible to perform a topological sort (dpkg is too complex)
-        # instead, install/reconfigure repeatedly until errors resolve themselves
+        # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
+        # easier to install/reconfigure repeatedly until errors resolve themselves
+        loop_count = 0
         packages_remaining = packages_to_install
         while packages_remaining:
+            loop_count += 1
+
+            print(f'dpkg -i/--configure loop #{loop_count}')
             # display stdout, parse stderr for packages to try and reinstall
             errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
-                                  stdout=subprocess.STDOUT,
+                                  stdout=sys.stdout,
                                   stderr=subprocess.PIPE, check=False).stderr.splitlines()
 
-            prev_num_remaining = len(packages_remaining)
-
-            packages_remaining = []
+            failures = []
             capture_packages = False
+            print('Errors:')
             for line in errs:
+                print(line)
                 line = line.strip()
                 if capture_packages and line.endswith('.deb'):
-                    packages_remaining.append(line)
+                    failures.append(line)
+                    assert os.path.isfile(line), f'{line} does not exist'
 
                 if line == 'Errors were encountered while processing:':
                     capture_packages = True
 
-            subprocess.run(['dpkg', '--configure', 'a'], check=False,
+            print('Running dpkg --configure -a...')
+            subprocess.run(['dpkg', '--configure', '-a'], check=False,
                            stdout=sys.stdout, stderr=sys.stderr)
 
-            for deb in glob('/var/cache/apt/archives/*.deb'):
-                _, tail = os.path.split(deb)
-                if tail not in packages_remaining:
+            for deb in packages_remaining:
+                if deb not in failures:
                     os.remove(deb)
 
-            print(glob('/var/cache/apt/archives/*.deb'))
-            if len(packages_remaining) >= prev_num_remaining:
+            if len(failures) >= len(packages_remaining):
                 print('Number of failed installs did not decrease, halting...')
+                packages_remaining = failures
                 break
 
-        if packages_remaining:
-            print('The following packages remain not fully installed:')
-            for remaining in packages_remaining:
-                print(f'\t{remaining}')
+            packages_remaining = failures
+
+            if packages_remaining:
+                print('The following packages remain not fully installed:')
+                for remaining in packages_remaining:
+                    print(f'\t{remaining}')
+        else:
+            print('All .debs were installed.')
 
 
     # clean apt-get cache (/var/cache/apt/archives)
@@ -71,8 +80,9 @@ def crossgrade(targets):
     # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
-    # install libraries before others
-    install_packages(glob('/var/cache/apt/archives/lib*.deb'))
+    # install all at once
+    # installing libraries before others doesn't bring much time savings because packages like
+    # libgcc1 depend on gcc-8-base, which is not a library
     install_packages(glob('/var/cache/apt/archives/*.deb'))
 
 
@@ -132,6 +142,9 @@ for package in hook_packages:
 for package, info in package_info.items():
     if info['is_essential'] and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
+
+crossgrade_targets.add('systemd:amd64')
+crossgrade_targets.add('apt:amd64')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
