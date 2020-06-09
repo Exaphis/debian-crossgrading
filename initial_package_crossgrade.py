@@ -1,6 +1,7 @@
 import argparse
 from collections import defaultdict
 from glob import glob
+import os
 import subprocess
 import sys
 
@@ -10,6 +11,48 @@ def crossgrade(targets):
 
     :param targets: list of packages to crossgrade
     """
+
+
+    def install_packages(packages_to_install):
+        # unfeasible to perform a topological sort (dpkg is too complex)
+        # instead, install/reconfigure repeatedly until errors resolve themselves
+        packages_remaining = packages_to_install
+        while packages_remaining:
+            # display stdout, parse stderr for packages to try and reinstall
+            errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
+                                  stdout=subprocess.STDOUT,
+                                  stderr=subprocess.PIPE, check=False).stderr.splitlines()
+
+            prev_num_remaining = len(packages_remaining)
+
+            packages_remaining = []
+            capture_packages = False
+            for line in errs:
+                line = line.strip()
+                if capture_packages and line.endswith('.deb'):
+                    packages_remaining.append(line)
+
+                if line == 'Errors were encountered while processing:':
+                    capture_packages = True
+
+            subprocess.run(['dpkg', '--configure', 'a'], check=False,
+                           stdout=sys.stdout, stderr=sys.stderr)
+
+            for deb in glob('/var/cache/apt/archives/*.deb'):
+                _, tail = os.path.split(deb)
+                if tail not in packages_remaining:
+                    os.remove(deb)
+
+            print(glob('/var/cache/apt/archives/*.deb'))
+            if len(packages_remaining) >= prev_num_remaining:
+                print('Number of failed installs did not decrease, halting...')
+                break
+
+        if packages_remaining:
+            print('The following packages remain not fully installed:')
+            for remaining in packages_remaining:
+                print(f'\t{remaining}')
+
 
     # clean apt-get cache (/var/cache/apt/archives)
     subprocess.check_call(['apt-get', 'clean'])
@@ -28,12 +71,9 @@ def crossgrade(targets):
     # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
     # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
 
-    for target in targets:
-        if ':' in target:
-            target = target[:target.index(':')]
-        # use gdebi because it installs dependencies first
-        subprocess.check_call(['gdebi', '-n', *glob(f'/var/cache/apt/archives/{target}*.deb')],
-                              stdout=sys.stdout, stderr=sys.stderr)
+    # install libraries before others
+    install_packages(glob('/var/cache/apt/archives/lib*.deb'))
+    install_packages(glob('/var/cache/apt/archives/*.deb'))
 
 
 parser = argparse.ArgumentParser()
