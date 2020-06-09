@@ -96,7 +96,8 @@ CURRENT_ARCH = subprocess.check_output(['dpkg', '--print-architecture'], encodin
 TARGET_ARCH = args.target_arch
 
 packages = subprocess.check_output(['dpkg-query', '-f',
-                                    '${Package}\t${Architecture}\t${Status}\t${Essential}\n',
+                                    '${Package}\t${Architecture}\t${Status}\t' \
+                                    '${Priority}\t${Essential}\n',
                                     '-W'], encoding='UTF-8').splitlines()
 
 # dict of package info containing keyed by full name (name:arch)
@@ -106,11 +107,12 @@ package_info = {}
 package_candidates = defaultdict(list)
 
 for package in packages:
-    name, arch, status, is_essential = package.split('\t')
+    name, arch, status, priority, is_essential = package.split('\t')
     full_name = f'{name}:{arch}'
     package_info[full_name] = {'name': name,
                                'arch': arch,
                                'status': status,
+                               'priority': priority,
                                'is_essential': is_essential == 'yes'}
     package_candidates[name].append(full_name)
 
@@ -138,13 +140,10 @@ for package in hook_packages:
     if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{name}:{TARGET_ARCH}')
 
-# crossgrade all essential packages to be able to finish crossgrade after reboot
+# crossgrade all Priority: required packages to be able to finish crossgrade after reboot
 for package, info in package_info.items():
-    if info['is_essential'] and info['arch'] not in ('all', TARGET_ARCH):
+    if info['priority'] == 'required' and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
-
-crossgrade_targets.add('systemd:amd64')
-crossgrade_targets.add('apt:amd64')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
