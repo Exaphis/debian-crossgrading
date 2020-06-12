@@ -140,10 +140,12 @@ for package in hook_packages:
     if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{name}:{TARGET_ARCH}')
 
-# crossgrade all Priority: required packages to be able to finish crossgrade after reboot
+# crossgrade all Priority: required/important packages to be able to finish crossgrade after reboot
 for package, info in package_info.items():
-    if info['priority'] == 'required' and info['arch'] not in ('all', TARGET_ARCH):
+    if info['priority'] in ('required', 'important') and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
+
+crossgrade_targets.add(f'sudo:{TARGET_ARCH}')
 
 if len(unaccounted_hooks) > 0:
     print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
@@ -152,7 +154,8 @@ if len(unaccounted_hooks) > 0:
     print('Aborting crossgrade.')
 else:
     print(f'{len(crossgrade_targets)} targets found.')
-    print(crossgrade_targets)
+    for target in sorted(crossgrade_targets):
+        print(target)
 
     if not args.simulate:
         cont = input('Do you want to continue [Y/n]? ').lower()

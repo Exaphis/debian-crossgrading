@@ -8,13 +8,17 @@ The official project can be found at https://summerofcode.withgoogle.com/project
 
 - [x] Crossgrading initramfs packages
     - [ ] Reliable initramfs verification hook
-- [ ] Rebooting into a non-broken state
+- [x] Rebooting into a non-broken state
     - [ ] ~~Use gdebi to install packages~~
     - [ ] ~~Install packages w/ topological sort instead of gdebi~~
     - [x] Install packages using looping `dpkg -i` and `dpkg --configure -a`
         - Source: https://anarc.at/services/upgrades/cross-architecture/
-    - [ ] Fix systemd entering emergency mode
+    - [x] Fix systemd entering emergency mode
+        - Fixed by crossgrading all Priority: required packages
 - [ ] Crossgrading remaining packages in target architecture
+    - [ ] Fix internet access in amd64 (crossgrade ifupdown)
+    - [ ] Download packages using python-apt instead of apt-get --download-only install
+        - Prevents download from failing when apt can't resolve dependencies
 
 ## Notes
 * Crossgrading over ssh - make sure the ssh service does not break/go down
