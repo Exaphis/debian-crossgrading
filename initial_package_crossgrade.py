@@ -24,8 +24,8 @@ def crossgrade(targets):
             print(f'dpkg -i/--configure loop #{loop_count}')
             # display stdout, parse stderr for packages to try and reinstall
             errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
-                                  stdout=sys.stdout,
-                                  stderr=subprocess.PIPE, check=False).stderr.splitlines()
+                                  stdout=sys.stdout, stderr=subprocess.PIPE,
+                                  check=False, env={'LC_ALL': 'C'}).stderr.splitlines()
 
             failures = []
             capture_packages = False
