@@ -8,6 +8,8 @@ import sys
 from apt import apt_pkg
 from apt.progress.text import AcquireProgress
 
+# TODO: use logging instead of print statements
+
 
 class PackageFetchException(Exception):
     """Raised when .deb fetching fails"""
@@ -22,6 +24,13 @@ def install_packages(packages_to_install):
     """
     # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
     # easier to install/reconfigure repeatedly until errors resolve themselves
+
+    # use dpkg to perform the crossgrade
+    # why? apt doesn't support crossgrading whereas dpkg does (unsure if this is up-to-date)
+    # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
+
+    # crossgrade in one call to prevent repeat triggers
+    # (e.g. initramfs rebuild), saving time
 
     # TODO: Experiment with Guillem's suggestion
     # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
@@ -101,7 +110,8 @@ def crossgrade(targets, force_install=False):
             if force_install:
                 print(f'{pkg_name} ignored.')
             else:
-                print('Try running apt-get update.')
+                # TODO: print a warning if the package contains an initramfs hook
+                print('Use the --force switch if this package can be safely ignored.')
                 return
 
     dep_cache = apt_pkg.DepCache(cache)
@@ -131,27 +141,32 @@ def crossgrade(targets, force_install=False):
             print(f'Error: {item.error_text}')
             return
 
-    # crossgrade in one call to prevent repeat triggers
-    # (e.g. initramfs rebuild), which saves time
-
-    # use dpkg to perform the crossgrade
-    # (why? apt doesn't support crossgrading whereas dpkg does, unsure if this is up-to-date)
-    # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
-
-    # install all at once
+    # install all .debs at once
     # TODO: perhaps install Section: libs first?
     install_packages(glob('/var/cache/apt/archives/*.deb'))
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('target_arch', help='Target architecture of the crossgrade')
-parser.add_argument('-s', '--simulate', help='No action; perform a simulation of what would happen',
+parser.add_argument('-s', '--simulate',
+                    help='No action; print packages that will be crossgraded',
                     action='store_true')
-parser.add_argument('-f', '--force',
-                    help='Force crossgrade even if not all packages' \
-                    ' were found in the target architecture',
+parser.add_argument('--force-install',
+                    help='Force crossgrade even if not all packages to be crossgraded' \
+                         ' are available in the target architecture',
+                    action='store_true')
+parser.add_argument('--force-initramfs',
+                    help='Force crossgrade even if not all initramfs' \
+                         ' hooks could be crossgraded',
+                    action='store_true')
+parser.add_argument('-f', '--force-all',
+                    help='Equivalent to --force-install --force-initramfs',
                     action='store_true')
 args = parser.parse_args()
+
+if args.force_all:
+    args.force_initramfs = True
+    args.force_install = True
 
 CURRENT_ARCH = subprocess.check_output(['dpkg', '--print-architecture'], encoding='UTF-8')
 TARGET_ARCH = args.target_arch
@@ -200,6 +215,21 @@ for package in hook_packages:
     if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{name}:{TARGET_ARCH}')
 
+if unaccounted_hooks:
+    print('-----')
+    print('WARNING: The following initramfs hooks in /usr/share/initramfs-tools/hooks' \
+          ' are unaccounted for:')
+    for hook in unaccounted_hooks:
+        print(f'\t{hook}')
+    print('Please verify that they do not copy non target architecture binaries.')
+    print('Non target architecture binaries run in the initramfs can result in a failure' \
+          ' to boot the system.')
+    print('-----')
+
+    if not args.force_initramfs:
+        print('Use the --force-initramfs switch to force crossgrade to continue.')
+        sys.exit('Not all initramfs hooks accounted for')
+
 # crossgrade all Priority: required/important packages to be able to finish crossgrade after reboot
 for package, info in package_info.items():
     if info['priority'] in ('required', 'important') and info['arch'] not in ('all', TARGET_ARCH):
@@ -207,19 +237,13 @@ for package, info in package_info.items():
 
 crossgrade_targets.add(f'sudo:{TARGET_ARCH}')
 
-if len(unaccounted_hooks) > 0:
-    print('The following hooks in /usr/share/initramfs-tools/hooks are unaccounted for:')
-    for hook in unaccounted_hooks:
-        print(f'\t{hook}')
-    print('Aborting crossgrade.')
-else:
-    print(f'{len(crossgrade_targets)} targets found.')
-    for target in sorted(crossgrade_targets):
-        print(target)
+print(f'{len(crossgrade_targets)} targets found.')
+for target in sorted(crossgrade_targets):
+    print(target)
 
-    if not args.simulate:
-        cont = input('Do you want to continue [Y/n]? ').lower()
-        if cont in ('', 'y'):
-            crossgrade(crossgrade_targets, args.force)
-        else:
-            print('Aborted.')
+if not args.simulate:
+    cont = input('Do you want to continue [Y/n]? ').lower()
+    if cont in ('', 'y'):
+        crossgrade(crossgrade_targets, args.force_install)
+    else:
+        print('Aborted.')
