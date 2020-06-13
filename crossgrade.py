@@ -235,8 +235,6 @@ for package, info in package_info.items():
     if info['priority'] in ('required', 'important') and info['arch'] not in ('all', TARGET_ARCH):
         crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
 
-crossgrade_targets.add(f'sudo:{TARGET_ARCH}')
-
 print(f'{len(crossgrade_targets)} targets found.')
 for target in sorted(crossgrade_targets):
     print(target)
