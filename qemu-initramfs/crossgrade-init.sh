@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# configures qemu-user-static in the initramfs
+
+# run using kernel option
+# rdinit=/bin/sh, then /crossgrade-init.sh
+
 [ -d /dev ] || mkdir -m 0755 /dev
 [ -d /root ] || mkdir -m 0700 /root
 [ -d /sys ] || mkdir /sys
