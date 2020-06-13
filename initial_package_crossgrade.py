@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 from apt import apt_pkg
+from apt.progress.text import AcquireProgress
 
 
 def install_packages(packages_to_install):
@@ -94,7 +95,7 @@ def crossgrade(targets, force_install=False):
             print(f'{pkg_name} was not found in the apt cache.')
 
             if force_install:
-                print('{pkg_name} ignored.')
+                print(f'{pkg_name} ignored.')
             else:
                 print('Try running apt-get update.')
                 return
@@ -103,7 +104,7 @@ def crossgrade(targets, force_install=False):
     for pkg in target_pkgs:
         dep_cache.mark_install(pkg)
 
-    fetcher = apt_pkg.Acquire()
+    fetcher = apt_pkg.Acquire(AcquireProgress())
     manager = apt_pkg.PackageManager(dep_cache)
     records = apt_pkg.PackageRecords(cache)
 
