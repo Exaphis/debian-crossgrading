@@ -9,6 +9,10 @@ from apt import apt_pkg
 from apt.progress.text import AcquireProgress
 
 
+class PackageFetchException(Exception):
+    """Raised when .deb fetching fails"""
+
+
 def install_packages(packages_to_install):
     """
     Installs the .deb files specified in packages_to_install
@@ -112,10 +116,14 @@ def crossgrade(targets, force_install=False):
     sources.read_main_list()
 
     ret = manager.get_archives(fetcher, sources, records)
-    assert ret
+    if not ret:
+        raise PackageFetchException('PackageManger.get_archives() failed')
 
     ret = fetcher.run()
-    assert ret == fetcher.RESULT_CONTINUE
+    if ret == fetcher.RESULT_CANCELLED:
+        raise PackageFetchException('Fetching was cancelled')
+    if ret == fetcher.RESULT_FAILED:
+        raise PackageFetchException('Fetching failed')
 
     for item in fetcher.items:
         if not item.complete:
@@ -156,7 +164,8 @@ packages = subprocess.check_output(['dpkg-query', '-f',
 # dict of package info containing keyed by full name (name:arch)
 package_info = {}
 
-# keep a list of candidates for each package name (a package may be in multiple archs)
+# keep a list of candidates for each package name
+# used when dpkg outputs a name without arch
 package_candidates = defaultdict(list)
 
 for package in packages:
@@ -171,7 +180,7 @@ for package in packages:
 
 crossgrade_targets = set()
 
-# crossgrade all packages with initramfs hooks scripts so boot can succeed
+# crossgrade all packages with initramfs hook scripts so boot can succeed
 unaccounted_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
 hook_packages = subprocess.check_output(['dpkg-query', '-S',
                                          '/usr/share/initramfs-tools/hooks/*'],
@@ -181,13 +190,11 @@ for package in hook_packages:
 
     unaccounted_hooks.discard(hook)
 
-    # TODO: what does dpkg output if the same package is installed twice
-    # with different architectures?
-    # current assumption: it outputs both as name:arch
     if ':' in name:
         full_name = name
         name = name[:name.index(':')]
     else:
+        assert len(package_candidates[name]) == 1
         full_name = package_candidates[name][0]
 
     if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
