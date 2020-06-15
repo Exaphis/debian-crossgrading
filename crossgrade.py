@@ -1,247 +1,305 @@
 import argparse
-from collections import defaultdict
 from glob import glob
 import os
 import subprocess
 import sys
 
-from apt import apt_pkg
-from apt.progress.text import AcquireProgress
+import apt
 
 # TODO: use logging instead of print statements
 
+class CrossgradingError(Exception):
+    """Base class for crossgrading exceptions."""
 
-class PackageFetchException(Exception):
-    """Raised when .deb fetching fails"""
+
+class InvalidArchitectureError(CrossgradingError):
+    """Raised when a given architecture is not recognized by dpkg."""
 
 
-def install_packages(packages_to_install):
+class PackageInstallationError(CrossgradingError):
+    """Raised when an error occurs while packages are being installed.
+
+    Attributes:
+        packages: A list of .deb files that were not installed.
     """
-    Installs the .deb files specified in packages_to_install
-    using a looping dpkg -i *.deb/dpkg --configure -a.
 
-    :param packages_to_install: list of paths to .deb files
+    def __init__(self, packages):
+        super().__init__('An error occurred installing the '
+                         f'following packages: {str(packages)}')
+        self.packages = packages
+
+
+class RemnantInitramfsHooksError(CrossgradingError):
+    """Raised when not all initramfs hooks could be accounted for.
+
+    Attributes:
+        remnant_hooks: A list of paths to hooks that could not be linked
+            to a package that will be crossgraded.
     """
-    # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
-    # easier to install/reconfigure repeatedly until errors resolve themselves
 
-    # use dpkg to perform the crossgrade
-    # why? apt doesn't support crossgrading whereas dpkg does (unsure if this is up-to-date)
-    # https://lists.debian.org/debian-devel-announce/2012/03/msg00005.html
+    def __init__(self, hooks):
+        super().__init__('The following initramfs hooks could not be '
+                         f'linked to packages: {str(hooks)}')
+        self.hooks = hooks
 
-    # crossgrade in one call to prevent repeat triggers
-    # (e.g. initramfs rebuild), saving time
 
-    # TODO: Experiment with Guillem's suggestion
-    # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
-    # Summary: Use dpkg --unpack; dpkg --configure --pending instead of dpkg -i?
+class PackageNotFoundError(CrossgradingError):
+    """Raised when a package does not exist in APT's cache.
 
-    loop_count = 0
-    packages_remaining = packages_to_install
-    while packages_remaining:
-        loop_count += 1
+    Attributes:
+        package: The name of the package that could not be found.
+    """
 
-        print(f'dpkg -i/--configure loop #{loop_count}')
-        # display stdout, parse stderr for packages to try and reinstall
-        errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
-                              stdout=sys.stdout,
-                              stderr=subprocess.PIPE, check=False).stderr.splitlines()
+    def __init__(self, package):
+        super().__init__(f'{package} could not be found in APT\'s cache')
+        self.package = package
 
-        failures = []
-        capture_packages = False
-        print('Errors:')
-        for line in errs:
-            print(line)
-            line = line.strip()
-            if capture_packages and line.endswith('.deb'):
-                failures.append(line)
-                assert os.path.isfile(line), f'{line} does not exist'
 
-            if line == 'Errors were encountered while processing:':
-                capture_packages = True
+class Crossgrader:
+    """Finds packages to crossgrade and crossgrades them.
 
-        print('Running dpkg --configure -a...')
-        subprocess.run(['dpkg', '--configure', '-a'], check=False,
-                       stdout=sys.stdout, stderr=sys.stderr)
+    Attributes:
+        target_arch: A string representing the target architecture of dpkg.
+        current_arch: A string representing the current architecture of dpkg.
+    """
 
-        for deb in packages_remaining:
-            if deb not in failures:
-                os.remove(deb)
+    def __init__(self, target_architecture):
+        """Inits Crossgrader with the given target architecture.
 
-        if len(failures) >= len(packages_remaining):
-            print('Number of failed installs did not decrease, halting...')
+        Raises:
+            InvalidArchitectureError: The given target_architecture is not recognized
+                by dpkg.
+        """
+        valid_architectures = subprocess.check_output(['dpkg-architecture', '--list-known'],
+                                                      encoding='UTF-8').splitlines()
+        if target_architecture not in valid_architectures:
+            raise InvalidArchitectureError(f'{target_architecture} is not recognized by dpkg.')
+
+        self.target_arch = target_architecture
+        self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
+                                                    encoding='UTF-8')
+
+        self._apt_cache = apt.Cache()
+        self._apt_cache.update(apt.progress.text.AcquireProgress())
+        self._apt_cache.open()  # re-open to utilise new cache
+
+    def __enter__(self):
+        """Enter the with statement"""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit the with statement"""
+        self.close()
+
+    def close(self):
+        """Close the package cache"""
+        self._apt_cache.close()
+
+    @staticmethod
+    def install_packages(packages_to_install=None):
+        """Installs specified .deb files.
+
+        Installs the .deb files specified in packages_to_install
+        using a looping dpkg -i *.deb / dpkg --configure -a.
+
+        Args:
+            packages_to_install: A list of paths to .deb files. If it is None,
+                all .debs in APT's cache will be installed.
+
+        Raises:
+            PackageInstallationError: Some of the packages were not successfully
+                installed/configured.
+        """
+        if packages_to_install is None:
+            packages_to_install = glob('/var/cache/apt/archives/*.deb')
+
+        # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
+        # easier to install/reconfigure repeatedly until errors resolve themselves
+
+        # use dpkg to perform the crossgrade because apt does not realize that crossgrading
+        # a package will not necessarily break it because of qemu user emulation
+        # e.g. apt refuses to install perl-base
+
+        # crossgrade in one call to prevent repeat triggers
+        # (e.g. initramfs rebuild), saving time
+
+        # TODO: Experiment with Guillem's suggestion
+        # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
+        # Summary: Use dpkg --unpack; dpkg --configure --pending instead of dpkg -i?
+        loop_count = 0
+        packages_remaining = packages_to_install
+        while packages_remaining:
+            loop_count += 1
+
+            print(f'dpkg -i/--configure loop #{loop_count}')
+            # display stdout, parse stderr for packages to try and reinstall
+            errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
+                                  stdout=sys.stdout,
+                                  stderr=subprocess.PIPE, check=False).stderr.splitlines()
+
+            failures = []
+            capture_packages = False
+            print('Errors:')
+            for line in errs:
+                print(line)
+                line = line.strip()
+                if capture_packages and line.endswith('.deb'):
+                    failures.append(line)
+                    assert os.path.isfile(line), f'{line} does not exist'
+
+                if line == 'Errors were encountered while processing:':
+                    capture_packages = True
+
+            print('Running dpkg --configure -a...')
+            subprocess.run(['dpkg', '--configure', '-a'], check=False,
+                           stdout=sys.stdout, stderr=sys.stderr)
+
+            for deb in packages_remaining:
+                if deb not in failures:
+                    os.remove(deb)
+
+            if len(failures) >= len(packages_remaining):
+                print('Number of failed installs did not decrease, halting...')
+                packages_remaining = failures
+                break
+
             packages_remaining = failures
-            break
 
-        packages_remaining = failures
+            if packages_remaining:
+                print('The following packages were not fully installed, retrying...')
+                for package in packages_remaining:
+                    print(f'\t{package}')
 
         if packages_remaining:
-            print('The following packages remain not fully installed:')
-            for remaining in packages_remaining:
-                print(f'\t{remaining}')
-    else:
-        print('All .debs were installed.')
+            raise PackageInstallationError(packages_remaining)
+
+    def cache_package_debs(self, targets):
+        """Cache specified packages.
+
+        Clears APT's .deb cache, then downloads specified packages
+        to /var/apt/cache/archives using python-apt.
+
+        Args:
+            targets: A list of apt.package.Package objects to crossgrade.
+
+        Raises:
+            PackageFetchError: Some packages were not successfully fetched.
+        """
+
+        # clean /var/cache/apt/archives for download
+        # is there a python-apt function for this?
+        subprocess.check_call(['apt-get', 'clean'])
+
+        # use python-apt to cache .debs for package and dependencies
+        # because apt-get --download-only install will not download
+        # if it can't find a good way to resolve dependencies
+
+        for target in targets:
+            target.mark_install(auto_fix=False)  # do not try to fix broken packages
+
+        # fetch_archives() throws a more detailed error if a specific package
+        # could not be downloaded for some reason.
+        # Do not check its return value; it is undefined.
+        self._apt_cache.fetch_archives()
+
+        self._apt_cache.clear()
+
+    def _is_first_stage_target(self, package):
+        """Returns a boolean of whether or not the apt.package.Package is a first stage target."""
+        if not package.is_installed:
+            return False
+
+        # do not use package.architecture() because Architecture: all packages
+        # returns the native architecture
+        if package.installed.architecture in('all', self.target_arch):
+            return False
+
+        if package.installed.priority in ('required', 'important'):
+            return True
+        if any(installed_file.startswith('/usr/share/initramfs-tools/hooks')
+               for installed_file in package.installed_files):
+            return True
+
+        return False
+
+    def list_first_stage_targets(self, ignore_initramfs_remnants=False,
+                                 ignore_unavailable_targets=False):
+        """Returns a list of apt.package.Package objects that must be crossgraded before reboot.
+
+        Retrieves and returns a list of all packages with Priority: required/important
+        or installed initramfs hooks.
+
+        Args:
+            ignore_initramfs_remnants: If true, do not raise a RemnantInitramfsHooksError if
+                there are initramfs hooks that could not be linked.
+            ignore_unavailable_targets: If true, do not raise a PackageNotFoundError if a package
+                could not be found in the target architecture.
+
+        Raises:
+            RemnantInitramfsHooksError: Some initramfs hooks could not be linked to a
+                first stage target package.
+            PackageNotFoundError: A required package in the target architecture was not available
+                in APT's cache.
+        """
+
+        initramfs_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
+        targets = []
+        for package in self._apt_cache:
+            if self._is_first_stage_target(package):
+                target_name = f'{package.shortname}:{self.target_arch}'
+                try:
+                    target_pkg = self._apt_cache[target_name]
+                    targets.append(target_pkg)
+                    initramfs_hooks.difference_update(package.installed_files)
+                except KeyError:
+                    if not ignore_unavailable_targets:
+                        raise PackageNotFoundError(target_name)
+            elif package.is_installed and package.installed.architecture == 'all':
+                initramfs_hooks.difference_update(package.installed_files)
+
+        if initramfs_hooks and not ignore_initramfs_remnants:
+            raise RemnantInitramfsHooksError(initramfs_hooks)
+
+        return targets
 
 
-def crossgrade(targets, force_install=False):
-    """Crossgrades each package listed in targets
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target_arch', help='Target architecture of the crossgrade')
+    parser.add_argument('-s', '--simulate',
+                        help='No action; print packages that will be crossgraded',
+                        action='store_true')
+    parser.add_argument('--force-unavailable',
+                        help=('Force crossgrade even if not all packages to be crossgraded'
+                              ' are available in the target architecture'),
+                        action='store_true')
+    parser.add_argument('--force-initramfs',
+                        help=('Force crossgrade even if not all initramfs'
+                              ' hooks could be crossgraded'),
+                        action='store_true')
+    parser.add_argument('-f', '--force-all',
+                        help='Equivalent to --force-install --force-initramfs',
+                        action='store_true')
+    args = parser.parse_args()
 
-    :param targets: list of packages to crossgrade
-    :param force_install: whether or not to continue despite package not being found
-    """
+    if args.force_all:
+        args.force_initramfs = True
+        args.force_unavailable = True
 
-    # clean apt-get cache (/var/cache/apt/archives)
-    subprocess.check_call(['apt-get', 'clean'])
+    with Crossgrader(args.target_arch) as crossgrader:
+        first_stage_targets = crossgrader.list_first_stage_targets(
+            ignore_initramfs_remnants=args.force_initramfs,
+            ignore_unavailable_targets=args.force_unavailable
+        )
 
-    # use libapt to cache .debs for package and dependencies
-    # because apt-get --download-only install will not download
-    # if it can't find a good way to resolve dependencies
-    apt_pkg.init()
+        print(f'{len(first_stage_targets)} targets found.')
+        for pkg_name in sorted(map(lambda pkg: pkg.fullname, first_stage_targets)):
+            print(pkg_name)
 
-    cache = apt_pkg.Cache()
-
-    target_pkgs = []
-    for pkg_name in targets:
-        try:
-            target_pkgs.append(cache[pkg_name])
-        except KeyError:
-            print(f'{pkg_name} was not found in the apt cache.')
-
-            if force_install:
-                print(f'{pkg_name} ignored.')
+        if not args.simulate:
+            cont = input('Do you want to continue [Y/n]? ').lower()
+            if cont in ('', 'y'):
+                crossgrader.cache_package_debs(first_stage_targets)
+                # crossgrader.install_packages()
             else:
-                # TODO: print a warning if the package contains an initramfs hook
-                print('Use the --force switch if this package can be safely ignored.')
-                return
-
-    dep_cache = apt_pkg.DepCache(cache)
-    for pkg in target_pkgs:
-        dep_cache.mark_install(pkg)
-
-    fetcher = apt_pkg.Acquire(AcquireProgress())
-    manager = apt_pkg.PackageManager(dep_cache)
-    records = apt_pkg.PackageRecords(cache)
-
-    sources = apt_pkg.SourceList()
-    sources.read_main_list()
-
-    ret = manager.get_archives(fetcher, sources, records)
-    if not ret:
-        raise PackageFetchException('PackageManger.get_archives() failed')
-
-    ret = fetcher.run()
-    if ret == fetcher.RESULT_CANCELLED:
-        raise PackageFetchException('Fetching was cancelled')
-    if ret == fetcher.RESULT_FAILED:
-        raise PackageFetchException('Fetching failed')
-
-    for item in fetcher.items:
-        if not item.complete:
-            print(f'{item.destfile} failed to download')
-            print(f'Error: {item.error_text}')
-            return
-
-    # install all .debs at once
-    # TODO: perhaps install Section: libs first?
-    install_packages(glob('/var/cache/apt/archives/*.deb'))
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument('target_arch', help='Target architecture of the crossgrade')
-parser.add_argument('-s', '--simulate',
-                    help='No action; print packages that will be crossgraded',
-                    action='store_true')
-parser.add_argument('--force-install',
-                    help='Force crossgrade even if not all packages to be crossgraded' \
-                         ' are available in the target architecture',
-                    action='store_true')
-parser.add_argument('--force-initramfs',
-                    help='Force crossgrade even if not all initramfs' \
-                         ' hooks could be crossgraded',
-                    action='store_true')
-parser.add_argument('-f', '--force-all',
-                    help='Equivalent to --force-install --force-initramfs',
-                    action='store_true')
-args = parser.parse_args()
-
-if args.force_all:
-    args.force_initramfs = True
-    args.force_install = True
-
-CURRENT_ARCH = subprocess.check_output(['dpkg', '--print-architecture'], encoding='UTF-8')
-TARGET_ARCH = args.target_arch
-
-packages = subprocess.check_output(['dpkg-query', '-f',
-                                    '${Package}\t${Architecture}\t${Status}\t' \
-                                    '${Priority}\t${Essential}\n',
-                                    '-W'], encoding='UTF-8').splitlines()
-
-# dict of package info containing keyed by full name (name:arch)
-package_info = {}
-
-# keep a list of candidates for each package name
-# used when dpkg outputs a name without arch
-package_candidates = defaultdict(list)
-
-for package in packages:
-    name, arch, status, priority, is_essential = package.split('\t')
-    full_name = f'{name}:{arch}'
-    package_info[full_name] = {'name': name,
-                               'arch': arch,
-                               'status': status,
-                               'priority': priority,
-                               'is_essential': is_essential == 'yes'}
-    package_candidates[name].append(full_name)
-
-crossgrade_targets = set()
-
-# crossgrade all packages with initramfs hook scripts so boot can succeed
-unaccounted_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
-hook_packages = subprocess.check_output(['dpkg-query', '-S',
-                                         '/usr/share/initramfs-tools/hooks/*'],
-                                        encoding='UTF-8').splitlines()
-for package in hook_packages:
-    name, hook = package.split(': ')
-
-    unaccounted_hooks.discard(hook)
-
-    if ':' in name:
-        full_name = name
-        name = name[:name.index(':')]
-    else:
-        assert len(package_candidates[name]) == 1
-        full_name = package_candidates[name][0]
-
-    if package_info[full_name]['arch'] not in ('all', TARGET_ARCH):
-        crossgrade_targets.add(f'{name}:{TARGET_ARCH}')
-
-if unaccounted_hooks:
-    print('-----')
-    print('WARNING: The following initramfs hooks in /usr/share/initramfs-tools/hooks' \
-          ' are unaccounted for:')
-    for hook in unaccounted_hooks:
-        print(f'\t{hook}')
-    print('Please verify that they do not copy non target architecture binaries.')
-    print('Non target architecture binaries run in the initramfs can result in a failure' \
-          ' to boot the system.')
-    print('-----')
-
-    if not args.force_initramfs:
-        print('Use the --force-initramfs switch to force crossgrade to continue.')
-        sys.exit('Not all initramfs hooks accounted for')
-
-# crossgrade all Priority: required/important packages to be able to finish crossgrade after reboot
-for package, info in package_info.items():
-    if info['priority'] in ('required', 'important') and info['arch'] not in ('all', TARGET_ARCH):
-        crossgrade_targets.add(f'{info["name"]}:{TARGET_ARCH}')
-
-print(f'{len(crossgrade_targets)} targets found.')
-for target in sorted(crossgrade_targets):
-    print(target)
-
-if not args.simulate:
-    cont = input('Do you want to continue [Y/n]? ').lower()
-    if cont in ('', 'y'):
-        crossgrade(crossgrade_targets, args.force_install)
-    else:
-        print('Aborted.')
+                print('Aborted.')
