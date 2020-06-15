@@ -283,10 +283,11 @@ class Crossgrader:
         return targets
 
 
-if __name__ == '__main__':
+def main():
+    """Crossgrade driver, executed only if run as script"""
     parser = argparse.ArgumentParser()
     parser.add_argument('target_arch', help='Target architecture of the crossgrade')
-    parser.add_argument('-s', '--simulate',
+    parser.add_argument('--download-only',
                         help='Perform target package listing and download, but not installation',
                         action='store_true')
     parser.add_argument('--force-unavailable',
@@ -316,11 +317,15 @@ if __name__ == '__main__':
         for pkg_name in sorted(map(lambda pkg: pkg.fullname, first_stage_targets)):
             print(pkg_name)
 
-        cont = input('Do you want to continue [Y/n]? ').lower()
-        if cont in ('', 'y'):
+        cont = input('Do you want to continue [y/N]? ').lower()
+        if cont == 'y':
             crossgrader.cache_package_debs(first_stage_targets)
 
-            if not simulate:
+            if not args.download_only:
                 crossgrader.install_packages()
         else:
             print('Aborted.')
+
+
+if __name__ == '__main__':
+    main()
