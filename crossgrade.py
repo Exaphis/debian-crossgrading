@@ -1,3 +1,17 @@
+"""Debian crossgrading tool
+
+Exceptions:
+    CrossgradingError: Base class for crossgrading exceptions
+    InvalidArchitectureError: Input architecture was invalid
+    PackageInstallationError: Package failed to be installed
+    RemnantInitramfsHooksError: An initramfs hook could not be linked to an installed package
+    PackageNotFoundError: Package couldn't be found in the target architecture
+
+Classes:
+    Crossgrader: contains tools to perform system crossgrade
+"""
+
+
 import argparse
 from glob import glob
 import os
@@ -6,7 +20,6 @@ import sys
 
 import apt
 
-# TODO: use logging instead of print statements
 
 class CrossgradingError(Exception):
     """Base class for crossgrading exceptions."""
@@ -75,9 +88,12 @@ class Crossgrader:
         if target_architecture not in valid_architectures:
             raise InvalidArchitectureError(f'{target_architecture} is not recognized by dpkg.')
 
-        self.target_arch = target_architecture
+        subprocess.check_call(['dpkg', '--add-architecture', target_architecture])
+
         self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
                                                     encoding='UTF-8')
+
+        self.target_arch = target_architecture
 
         self._apt_cache = apt.Cache()
         self._apt_cache.update(apt.progress.text.AcquireProgress())
@@ -181,9 +197,6 @@ class Crossgrader:
 
         Args:
             targets: A list of apt.package.Package objects to crossgrade.
-
-        Raises:
-            PackageFetchError: Some packages were not successfully fetched.
         """
 
         # clean /var/cache/apt/archives for download
@@ -205,7 +218,14 @@ class Crossgrader:
         self._apt_cache.clear()
 
     def _is_first_stage_target(self, package):
-        """Returns a boolean of whether or not the apt.package.Package is a first stage target."""
+        """Returns a boolean of whether or not the apt.package.Package is a first stage target.
+
+        A first stage target is a package with Priority: required/important or
+        installed initramfs hooks.
+
+        Without first stage targets being crossgraded, the system will fail to reboot to the
+        new architecture or will be useless after reboot.
+        """
         if not package.is_installed:
             return False
 
