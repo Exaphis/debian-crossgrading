@@ -287,7 +287,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target_arch', help='Target architecture of the crossgrade')
     parser.add_argument('-s', '--simulate',
-                        help='No action; print packages that will be crossgraded',
+                        help='Perform target package listing and download, but not installation',
                         action='store_true')
     parser.add_argument('--force-unavailable',
                         help=('Force crossgrade even if not all packages to be crossgraded'
@@ -316,10 +316,11 @@ if __name__ == '__main__':
         for pkg_name in sorted(map(lambda pkg: pkg.fullname, first_stage_targets)):
             print(pkg_name)
 
-        if not args.simulate:
-            cont = input('Do you want to continue [Y/n]? ').lower()
-            if cont in ('', 'y'):
-                crossgrader.cache_package_debs(first_stage_targets)
-                # crossgrader.install_packages()
-            else:
-                print('Aborted.')
+        cont = input('Do you want to continue [Y/n]? ').lower()
+        if cont in ('', 'y'):
+            crossgrader.cache_package_debs(first_stage_targets)
+
+            if not simulate:
+                crossgrader.install_packages()
+        else:
+            print('Aborted.')
