@@ -69,6 +69,23 @@ class PackageNotFoundError(CrossgradingError):
         self.package = package
 
 
+def apt_cache_filter_factory(filter_name, filter_func):
+    """Returns an apt Filter object with the given name and apply function.
+
+    The object will be an instance of a class inheriting from apt.cache.Filter,
+    which can be used with apt.cache.FilteredCache().
+
+    Args:
+        filter_name: __name__ value of the output class
+        filter_func: apply(pkg) function of the output class, must take in an
+            apt.package.Package() object and return True if the the package matches
+            a filter criteria and False otherwise.
+    """
+
+    return type(filter_name,
+                (apt.cache.Filter,),
+                {'apply': lambda self, package: filter_func(package)})()
+
 class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
@@ -232,7 +249,7 @@ class Crossgrader:
 
         # do not use package.architecture() because Architecture: all packages
         # returns the native architecture
-        if package.installed.architecture in('all', self.target_arch):
+        if package.installed.architecture in ('all', self.target_arch):
             return False
 
         if package.installed.priority in ('required', 'important'):
@@ -265,7 +282,11 @@ class Crossgrader:
 
         initramfs_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
         targets = []
-        for package in self._apt_cache:
+
+        filtered_cache = apt.cache.FilteredCache(self._apt_cache)
+        filtered_cache.set_filter(apt.cache.InstalledFilter())
+
+        for package in filtered_cache:
             if self._is_first_stage_target(package):
                 target_name = f'{package.shortname}:{self.target_arch}'
                 try:
