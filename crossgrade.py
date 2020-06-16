@@ -269,22 +269,32 @@ class Crossgrader:
         for hook_package in hook_packages:
             name, hook = hook_package.split(': ')
 
-            unaccounted_hooks.discard(hook)  # don't care if hook is actually installed
+            if hook not in unaccounted_hooks:
+                print(f'Expected {name} to contain an initramfs hook, but it does not.')
+                print(f'Skipping {name}.')
+                continue
+
+            unaccounted_hooks.remove(hook)
 
             package = self._apt_cache[name]
 
             if not package.is_installed:
-                # TODO: handle this better
-                print(f'WARNING: {package}, containing an initramfs hook, is marked as not installed.')
-                print('Remove/fix it manually.')
-                raise RemnantInitramfsHooksError({hook})
+                print((f'WARNING: {package}, containing an initramfs hook, ',
+                       'is marked as not fully installed.'))
+                print('Assuming it is installed.')
+                architecture = package.candidate.architecture
+            else:
+                architecture = package.installed.architecture
 
-            if package.installed.architecture not in ('all', self.target_arch):
+            if architecture not in ('all', self.target_arch):
                 targets.add(package.shortname)
 
         if unaccounted_hooks and not ignore_initramfs_remnants:
             raise RemnantInitramfsHooksError(unaccounted_hooks)
 
+        # looping through the APT cache using python-apt takes 10+ seconds on
+        # some systems
+        # dpkg-query instead takes <1 second
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
                                                       '-W'], encoding='UTF-8').splitlines()
@@ -294,19 +304,10 @@ class Crossgrader:
             if self._is_first_stage_target(package):
                 targets.add(package.shortname)
 
-        target_pkgs = []
-        for short_name in targets:
-            target_name = f'{short_name}:{self.target_arch}'
-            try:
-                target_pkg = self._apt_cache[target_name]
-                target_pkgs.append(target_pkg)
-            except KeyError:
-                if not ignore_unavailable_targets:
-                    raise PackageNotFoundError(target_name)
+        targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
+        return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
-        return target_pkgs
-
-    def find_packages_from_names(self, package_names):
+    def find_packages_from_names(self, package_names, ignore_unavailable_targets=False):
         """Returns a list of apt.package.Package objects corresponding to the given names.
 
         If no architecture is specified, it defaults to the target architecture.
@@ -326,7 +327,8 @@ class Crossgrader:
                 if not package.is_installed:
                     packages.append(package)
             except KeyError:
-                raise PackageNotFoundError(name_with_arch)
+                if not ignore_unavailable_targets:
+                    raise PackageNotFoundError(name_with_arch)
 
         return packages
 
