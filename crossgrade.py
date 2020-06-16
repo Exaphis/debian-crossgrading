@@ -220,8 +220,9 @@ class Crossgrader:
     def _is_first_stage_target(self, package):
         """Returns a boolean of whether or not the apt.package.Package is a first stage target.
 
-        A first stage target is a package with Priority: required/important or
-        installed initramfs hooks.
+        A first stage target is a package with Priority: required/important.
+
+        This function does not check if the package has installed initramfs hooks.
 
         Without first stage targets being crossgraded, the system will fail to reboot to the
         new architecture or will be useless after reboot.
@@ -231,13 +232,10 @@ class Crossgrader:
 
         # do not use package.architecture() because Architecture: all packages
         # returns the native architecture
-        if package.installed.architecture in('all', self.target_arch):
+        if package.installed.architecture in ('all', self.target_arch):
             return False
 
         if package.installed.priority in ('required', 'important'):
-            return True
-        if any(installed_file.startswith('/usr/share/initramfs-tools/hooks')
-               for installed_file in package.installed_files):
             return True
 
         return False
@@ -262,25 +260,51 @@ class Crossgrader:
                 in APT's cache.
         """
 
-        initramfs_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
-        targets = []
-        for package in self._apt_cache:
+        unaccounted_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
+        targets = set()
+
+        hook_packages = subprocess.check_output(['dpkg-query', '-S',
+                                                 '/usr/share/initramfs-tools/hooks/*'],
+                                                encoding='UTF-8').splitlines()
+        for hook_package in hook_packages:
+            name, hook = hook_package.split(': ')
+
+            unaccounted_hooks.discard(hook)  # don't care if hook is actually installed
+
+            package = self._apt_cache[name]
+
+            if not package.is_installed:
+                # TODO: handle this better
+                print(f'WARNING: {package}, containing an initramfs hook, is marked as not installed.')
+                print('Remove/fix it manually.')
+                raise RemnantInitramfsHooksError({hook})
+
+            if package.installed.architecture not in ('all', self.target_arch):
+                targets.add(package.shortname)
+
+        if unaccounted_hooks and not ignore_initramfs_remnants:
+            raise RemnantInitramfsHooksError(unaccounted_hooks)
+
+        installed_packages = subprocess.check_output(['dpkg-query', '-f',
+                                                      '${Package}:${Architecture}\n',
+                                                      '-W'], encoding='UTF-8').splitlines()
+
+        for full_name in installed_packages:
+            package = self._apt_cache[full_name]
             if self._is_first_stage_target(package):
-                target_name = f'{package.shortname}:{self.target_arch}'
-                try:
-                    target_pkg = self._apt_cache[target_name]
-                    targets.append(target_pkg)
-                    initramfs_hooks.difference_update(package.installed_files)
-                except KeyError:
-                    if not ignore_unavailable_targets:
-                        raise PackageNotFoundError(target_name)
-            elif package.is_installed and package.installed.architecture == 'all':
-                initramfs_hooks.difference_update(package.installed_files)
+                targets.add(package.shortname)
 
-        if initramfs_hooks and not ignore_initramfs_remnants:
-            raise RemnantInitramfsHooksError(initramfs_hooks)
+        target_pkgs = []
+        for short_name in targets:
+            target_name = f'{short_name}:{self.target_arch}'
+            try:
+                target_pkg = self._apt_cache[target_name]
+                target_pkgs.append(target_pkg)
+            except KeyError:
+                if not ignore_unavailable_targets:
+                    raise PackageNotFoundError(target_name)
 
-        return targets
+        return target_pkgs
 
     def find_packages_from_names(self, package_names):
         """Returns a list of apt.package.Package objects corresponding to the given names.
