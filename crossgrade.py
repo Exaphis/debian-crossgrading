@@ -282,6 +282,30 @@ class Crossgrader:
 
         return targets
 
+    def find_packages_from_names(self, package_names):
+        """Returns a list of apt.package.Package objects corresponding to the given names.
+
+        If no architecture is specified, it defaults to the target architecture.
+
+        Args:
+            package_names: A list of package names
+
+        Raises:
+            PackageNotFoundError: A package requested was not available in APT's cache.
+        """
+        packages = []
+        for name in package_names:
+            name_with_arch = name if ':' in name else f'{name}:{self.target_arch}'
+
+            try:
+                package = self._apt_cache[name_with_arch]
+                if not package.is_installed:
+                    packages.append(package)
+            except KeyError:
+                raise PackageNotFoundError(name_with_arch)
+
+        return packages
+
 
 def main():
     """Crossgrade driver, executed only if run as script"""
@@ -290,6 +314,11 @@ def main():
     parser.add_argument('--download-only',
                         help='Perform target package listing and download, but not installation',
                         action='store_true')
+    parser.add_argument('--install-from',
+                        help=('Perform .deb installation from a specified location '
+                              '(default: /var/cache/apt/archives), '
+                              'but not package listing and download'),
+                        nargs='?', const='/var/cache/apt/archives')
     parser.add_argument('--force-unavailable',
                         help=('Force crossgrade even if not all packages to be crossgraded'
                               ' are available in the target architecture'),
@@ -301,30 +330,49 @@ def main():
     parser.add_argument('-f', '--force-all',
                         help='Equivalent to --force-install --force-initramfs',
                         action='store_true')
+    parser.add_argument('-p', '--packages',
+                        help=('Crossgrade the subsequent package names and nothing else'),
+                        nargs='+')
     args = parser.parse_args()
 
     if args.force_all:
         args.force_initramfs = True
         args.force_unavailable = True
 
-    with Crossgrader(args.target_arch) as crossgrader:
-        first_stage_targets = crossgrader.list_first_stage_targets(
-            ignore_initramfs_remnants=args.force_initramfs,
-            ignore_unavailable_targets=args.force_unavailable
-        )
+    if args.install_from:
+        with Crossgrader(args.target_arch) as crossgrader:
+            debs = glob(args.install_from)
+            print('Installing the following .debs:')
+            for deb in debs:
+                print(f'\t{deb}')
 
-        print(f'{len(first_stage_targets)} targets found.')
-        for pkg_name in sorted(map(lambda pkg: pkg.fullname, first_stage_targets)):
-            print(pkg_name)
+            cont = input('Do you want to continue [y/N]? ').lower()
+            if cont == 'y':
+                crossgrader.install_packages(args.install_from)
+            else:
+                print('Aborted.')
+    else:
+        with Crossgrader(args.target_arch) as crossgrader:
+            if args.packages:
+                targets = crossgrader.find_packages_from_names(args.packages)
+            else:
+                targets = crossgrader.list_first_stage_targets(
+                    ignore_initramfs_remnants=args.force_initramfs,
+                    ignore_unavailable_targets=args.force_unavailable
+                )
 
-        cont = input('Do you want to continue [y/N]? ').lower()
-        if cont == 'y':
-            crossgrader.cache_package_debs(first_stage_targets)
+            print(f'{len(targets)} targets found.')
+            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
+                print(pkg_name)
 
-            if not args.download_only:
-                crossgrader.install_packages()
-        else:
-            print('Aborted.')
+            cont = input('Do you want to continue [y/N]? ').lower()
+            if cont == 'y':
+                crossgrader.cache_package_debs(targets)
+
+                if not args.download_only:
+                    crossgrader.install_packages()
+            else:
+                print('Aborted.')
 
 
 if __name__ == '__main__':
