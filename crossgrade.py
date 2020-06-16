@@ -17,6 +17,7 @@ from glob import glob
 import os
 import subprocess
 import sys
+from time import time
 
 import apt
 
@@ -356,10 +357,12 @@ def main():
             if args.packages:
                 targets = crossgrader.find_packages_from_names(args.packages)
             else:
+                start = time()
                 targets = crossgrader.list_first_stage_targets(
                     ignore_initramfs_remnants=args.force_initramfs,
                     ignore_unavailable_targets=args.force_unavailable
                 )
+                print(f'took {time()-start}s')
 
             print(f'{len(targets)} targets found.')
             for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
