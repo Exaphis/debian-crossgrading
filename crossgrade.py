@@ -17,6 +17,7 @@ from glob import glob
 import os
 import subprocess
 import sys
+import traceback
 
 import apt
 
@@ -96,14 +97,19 @@ class Crossgrader:
         self.target_arch = target_architecture
 
         self._apt_cache = apt.Cache()
-        self._apt_cache.update(apt.progress.text.AcquireProgress())
-        self._apt_cache.open()  # re-open to utilise new cache
+
+        try:
+            self._apt_cache.update(apt.progress.text.AcquireProgress())
+            self._apt_cache.open()  # re-open to utilise new cache
+        except apt.cache.FetchFailedException:
+            traceback.print_exc()
+            print('Ignoring...')
 
     def __enter__(self):
         """Enter the with statement"""
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         """Exit the with statement"""
         self.close()
 
@@ -367,14 +373,14 @@ def main():
 
     if args.install_from:
         with Crossgrader(args.target_arch) as crossgrader:
-            debs = glob(args.install_from)
+            debs = glob(f'{args.install_from}/*.deb')
             print('Installing the following .debs:')
             for deb in debs:
                 print(f'\t{deb}')
 
             cont = input('Do you want to continue [y/N]? ').lower()
             if cont == 'y':
-                crossgrader.install_packages(args.install_from)
+                crossgrader.install_packages(debs)
             else:
                 print('Aborted.')
     else:
