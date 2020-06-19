@@ -273,6 +273,7 @@ class Crossgrader:
                     packages.append(package)
             except KeyError:
                 if not ignore_unavailable_targets:
+                    print(f'Couldn\'t find {name_with_arch}, ignoring...')
                     raise PackageNotFoundError(name_with_arch)
 
         return packages
@@ -372,14 +373,28 @@ class Crossgrader:
         targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
+    @staticmethod
+    def get_arch_packages(foreign_arch):
+        """Returns all the packages in the given architecture."""
+        installed_packages = subprocess.check_output(['dpkg-query', '-f',
+                                                      '${Package}:${Architecture}\n',
+                                                      '-W'], encoding='UTF-8').splitlines()
+
+        return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
+
 
 def main():
     """Crossgrade driver, executed only if run as script"""
     parser = argparse.ArgumentParser()
     parser.add_argument('target_arch', help='Target architecture of the crossgrade')
     parser.add_argument('--second-stage',
-                        help='Run the second stage of the crossgrading process',
+                        help=('Run the second stage of the crossgrading process '
+                              '(crossgrading all remaining packages)'),
                         action='store_true')
+    parser.add_argument('--third-stage',
+                        help=('Run the third stage of the crossgrading process '
+                              '(removing all packages under specified arch)'),
+                        nargs='?')
     parser.add_argument('--download-only',
                         help='Perform target package listing and download, but not installation',
                         action='store_true')
@@ -426,9 +441,6 @@ def main():
             )
 
             print(f'{len(targets)} targets found.')
-            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
-                print(pkg_name)
-
             cont = input('Do you want to continue [y/N]? ').lower()
             if cont == 'y':
                 crossgrader.cache_package_debs(targets)
@@ -437,6 +449,26 @@ def main():
                     crossgrader.install_packages()
             else:
                 print('Aborted')
+        elif args.third_stage:
+            foreign_arch = args.third_stage
+            targets = crossgrader.get_arch_packages(foreign_arch)
+
+            print(f'{len(targets)} targets found.')
+            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
+                print(pkg_name)
+
+            cont = input('Do you want to continue [y/N]? ').lower()
+            if cont == 'y':
+                failed = []
+                for pkg_name in targets:
+                    try:
+                        subprocess.check_call(['dpkg', '--remove', pkg_name])
+                    except subprocess.CalledProcessError:
+                        failed.append(pkg_name)
+
+                print('The following packages were not successfully removed:')
+                for pkg_name in failed:
+                    print(f'\t{pkg_name}')
         else:
             if args.packages:
                 targets = crossgrader.find_packages_from_names(args.packages)
