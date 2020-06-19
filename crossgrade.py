@@ -459,16 +459,7 @@ def main():
 
             cont = input('Do you want to continue [y/N]? ').lower()
             if cont == 'y':
-                failed = []
-                for pkg_name in targets:
-                    try:
-                        subprocess.check_call(['dpkg', '--remove', pkg_name])
-                    except subprocess.CalledProcessError:
-                        failed.append(pkg_name)
-
-                print('The following packages were not successfully removed:')
-                for pkg_name in failed:
-                    print(f'\t{pkg_name}')
+                subprocess.check_call(['dpkg', '--remove', *targets])
         else:
             if args.packages:
                 targets = crossgrader.find_packages_from_names(args.packages)
