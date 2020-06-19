@@ -450,6 +450,7 @@ def main():
             else:
                 print('Aborted')
         elif args.third_stage:
+            # TODO: implement package exclusion
             foreign_arch = args.third_stage
             targets = crossgrader.get_arch_packages(foreign_arch)
 
@@ -459,7 +460,16 @@ def main():
 
             cont = input('Do you want to continue [y/N]? ').lower()
             if cont == 'y':
-                subprocess.check_call(['dpkg', '--remove', *targets])
+                subprocess.check_call(['dpkg', '--purge', *targets])
+                remaining = crossgrader.get_arch_packages(foreign_arch)
+                if remaining:
+                    print('The following packages could not be successfully purged:')
+                    for pkg_name in remaining:
+                        print(f'\t{pkg_name}')
+                else:
+                    print('All target successfully purged.')
+                    print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
+                           'complete the crossgrade.'))
         else:
             if args.packages:
                 targets = crossgrader.find_packages_from_names(args.packages)
