@@ -246,6 +246,37 @@ class Crossgrader:
 
         return False
 
+    def find_packages_from_names(self, package_names,
+                                 ignore_unavailable_targets=False,
+                                 ignore_installed=True):
+        """Returns a list of apt.package.Package objects corresponding to the given names.
+
+        If no architecture is specified, it defaults to the target architecture.
+
+        Args:
+            package_names: A list of package names
+            ignore_unavailable_targets: If true, ignore names that have no corresponding
+                packages
+            ignore_installed: If true, ignore packages that have already been installed
+
+        Raises:
+            PackageNotFoundError: A package requested was not available in APT's cache.
+        """
+        packages = []
+        for name in package_names:
+            name_with_arch = name if ':' in name else f'{name}:{self.target_arch}'
+
+            try:
+                package = self._apt_cache[name_with_arch]
+
+                if not ignore_installed or not package.is_installed:
+                    packages.append(package)
+            except KeyError:
+                if not ignore_unavailable_targets:
+                    raise PackageNotFoundError(name_with_arch)
+
+        return packages
+
     def list_first_stage_targets(self, ignore_initramfs_remnants=False,
                                  ignore_unavailable_targets=False):
         """Returns a list of apt.package.Package objects that must be crossgraded before reboot.
@@ -313,36 +344,42 @@ class Crossgrader:
         targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
-    def find_packages_from_names(self, package_names, ignore_unavailable_targets=False):
-        """Returns a list of apt.package.Package objects corresponding to the given names.
-
-        If no architecture is specified, it defaults to the target architecture.
+    def list_second_stage_targets(self, ignore_unavailable_targets):
+        """Returns a list of apt.package.Package objects that are not in the target architecture.
 
         Args:
-            package_names: A list of package names
+            ignore_unavailable_targets: If true, do not raise a PackageNotFoundError if a package
+                could not be found in the target architecture.
 
         Raises:
-            PackageNotFoundError: A package requested was not available in APT's cache.
+            PackageNotFoundError: A required package in the target architecture was not available
+                in APT's cache.
         """
-        packages = []
-        for name in package_names:
-            name_with_arch = name if ':' in name else f'{name}:{self.target_arch}'
 
-            try:
-                package = self._apt_cache[name_with_arch]
-                if not package.is_installed:
-                    packages.append(package)
-            except KeyError:
-                if not ignore_unavailable_targets:
-                    raise PackageNotFoundError(name_with_arch)
+        targets = set()
+        installed_packages = subprocess.check_output(['dpkg-query', '-f',
+                                                      '${Package}:${Architecture}\n',
+                                                      '-W'], encoding='UTF-8').splitlines()
+        for full_name in installed_packages:
+            package = self._apt_cache[full_name]
 
-        return packages
+            if not package.is_installed:
+                continue
+
+            if package.installed.architecture not in ('all', self.target_arch):
+                targets.add(package.shortname)
+
+        targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
+        return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
 
 def main():
     """Crossgrade driver, executed only if run as script"""
     parser = argparse.ArgumentParser()
     parser.add_argument('target_arch', help='Target architecture of the crossgrade')
+    parser.add_argument('--second-stage',
+                        help='Run the second stage of the crossgrading process',
+                        action='store_true')
     parser.add_argument('--download-only',
                         help='Perform target package listing and download, but not installation',
                         action='store_true')
@@ -371,8 +408,8 @@ def main():
         args.force_initramfs = True
         args.force_unavailable = True
 
-    if args.install_from:
-        with Crossgrader(args.target_arch) as crossgrader:
+    with Crossgrader(args.target_arch) as crossgrader:
+        if args.install_from:
             debs = glob(f'{args.install_from}/*.deb')
             print('Installing the following .debs:')
             for deb in debs:
@@ -383,8 +420,24 @@ def main():
                 crossgrader.install_packages(debs)
             else:
                 print('Aborted.')
-    else:
-        with Crossgrader(args.target_arch) as crossgrader:
+        elif args.second_stage:
+            targets = crossgrader.list_second_stage_targets(
+                ignore_unavailable_targets=args.force_unavailable
+            )
+
+            print(f'{len(targets)} targets found.')
+            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
+                print(pkg_name)
+
+            cont = input('Do you want to continue [y/N]? ').lower()
+            if cont == 'y':
+                crossgrader.cache_package_debs(targets)
+
+                if not args.download_only:
+                    crossgrader.install_packages()
+            else:
+                print('Aborted')
+        else:
             if args.packages:
                 targets = crossgrader.find_packages_from_names(args.packages)
             else:
