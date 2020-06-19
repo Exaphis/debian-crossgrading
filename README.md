@@ -38,18 +38,18 @@ The official project can be found at https://summerofcode.withgoogle.com/project
     - [x] Download packages using python-apt instead of apt-get --download-only install
         - Prevents download from failing when apt can't resolve dependencies
         - Now it can download install all Priority: required/important packages
-- [ ] Crossgrading remaining packages in target architecture
+- [x] Crossgrading remaining packages in target architecture
     - [x] Fix internet access in amd64 (crossgrade ifupdown)
-        - Weird... system boots without internet access, but fixes itself after some time
-    - [ ] Crossgrade other essential packages after reboot
-        - [ ] Pre-download qemu-user-static and its dependencies
+        - Add new network interface to /etc/network/interfaces
+    - [x] Crossgrade other essential packages after reboot
+        - [x] Pre-download qemu-user-static and its dependencies
             1. Crossgrade binfmt-support
                 - Otherwise, it tries to run amd64 binaries w/ qemu-user-x86_64, causing "Too many levels of symbolic links"
             2. Uninstall qemu-user-static:arm64
             3. Install qemu-user-static:amd64
-        - [ ] Pre-download python3 and its dependencies
-    - [ ] Be able to to manually specify packages to crossgrade in script
-    - [ ] Second-stage functionality - crossgrading remaining packages
+        - [x] Pre-download python3 and its dependencies
+    - [x] Be able to to manually specify packages to crossgrade in script
+    - [x] Second-stage functionality - crossgrading remaining packages
 
 
 ## Notes for future me...
@@ -59,4 +59,4 @@ The official project can be found at https://summerofcode.withgoogle.com/project
     * Solution: get output of `file /bin/dpkg`
 * Should we make sure the size of the new initramfs will not exceed the total amount of RAM available?
 * How can we point the bootloader to the right kernel/initramfs without user input?
-
+* Automate initial crossgrade of qemu-user-static/binfmt-support after reboot to target arch
