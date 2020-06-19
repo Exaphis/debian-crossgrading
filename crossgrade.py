@@ -454,7 +454,7 @@ def main():
             targets = crossgrader.get_arch_packages(foreign_arch)
 
             print(f'{len(targets)} targets found.')
-            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
+            for pkg_name in sorted(targets):
                 print(pkg_name)
 
             cont = input('Do you want to continue [y/N]? ').lower()
