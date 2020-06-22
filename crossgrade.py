@@ -382,6 +382,99 @@ class Crossgrader:
         return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
 
 
+def first_stage(args):
+    """Runs first stage of the crossgrade process.
+
+    Installs initramfs packages and packages with Priority: required/important.
+    Does not need to be run if the target architecture can run the existing architecture.
+    """
+    with Crossgrader(args.target_arch) as crossgrader:
+        if args.packages:
+            targets = crossgrader.find_packages_from_names(args.packages)
+        else:
+            targets = crossgrader.list_first_stage_targets(
+                ignore_initramfs_remnants=args.force_initramfs,
+                ignore_unavailable_targets=args.force_unavailable
+            )
+
+        print(f'{len(targets)} targets found.')
+        for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
+            print(pkg_name)
+
+        cont = input('Do you want to continue [y/N]? ').lower()
+        if cont == 'y':
+            crossgrader.cache_package_debs(targets)
+
+            if not args.download_only:
+                crossgrader.install_packages()
+        else:
+            print('Aborted.')
+
+
+def second_stage(args):
+    """Runs the second stage of the crossgrade process.
+
+    Crossgrades all packages that are not in the target architecture.
+    """
+    with Crossgrader(args.target_arch) as crossgrader:
+        targets = crossgrader.list_second_stage_targets(
+            ignore_unavailable_targets=args.force_unavailable
+        )
+
+        print(f'{len(targets)} targets found.')
+        cont = input('Do you want to continue [y/N]? ').lower()
+        if cont == 'y':
+            crossgrader.cache_package_debs(targets)
+
+            if not args.download_only:
+                crossgrader.install_packages()
+        else:
+            print('Aborted')
+
+
+def third_stage(args):
+    """Runs the third stage of the crossgrading process.
+
+    Removes all packages from the given architecture.
+    """
+    with Crossgrader(args.target_arch) as crossgrader:
+        # TODO: implement package exclusion
+        foreign_arch = args.third_stage
+        targets = crossgrader.get_arch_packages(foreign_arch)
+
+        print(f'{len(targets)} targets found.')
+        for pkg_name in sorted(targets):
+            print(pkg_name)
+
+        cont = input('Do you want to continue [y/N]? ').lower()
+        if cont == 'y':
+            subprocess.check_call(['dpkg', '--purge', *targets])
+            remaining = crossgrader.get_arch_packages(foreign_arch)
+            if remaining:
+                print('The following packages could not be successfully purged:')
+                for pkg_name in remaining:
+                    print(f'\t{pkg_name}')
+            else:
+                print('All target successfully purged.')
+                print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
+                       'complete the crossgrade.'))
+
+
+def install_from(args):
+    """Installs all .debs from the specified location."""
+    with Crossgrader(args.target_arch) as crossgrader:
+        debs = glob(f'{args.install_from}/*.deb')
+        print('Installing the following .debs:')
+        for deb in debs:
+            print(f'\t{deb}')
+
+        cont = input('Do you want to continue [y/N]? ').lower()
+        if cont == 'y':
+            crossgrader.install_packages(debs)
+        else:
+            print('Aborted.')
+
+
 def main():
     """Crossgrade driver, executed only if run as script"""
     parser = argparse.ArgumentParser()
@@ -422,74 +515,14 @@ def main():
         args.force_initramfs = True
         args.force_unavailable = True
 
-    with Crossgrader(args.target_arch) as crossgrader:
-        if args.install_from:
-            debs = glob(f'{args.install_from}/*.deb')
-            print('Installing the following .debs:')
-            for deb in debs:
-                print(f'\t{deb}')
-
-            cont = input('Do you want to continue [y/N]? ').lower()
-            if cont == 'y':
-                crossgrader.install_packages(debs)
-            else:
-                print('Aborted.')
-        elif args.second_stage:
-            targets = crossgrader.list_second_stage_targets(
-                ignore_unavailable_targets=args.force_unavailable
-            )
-
-            print(f'{len(targets)} targets found.')
-            cont = input('Do you want to continue [y/N]? ').lower()
-            if cont == 'y':
-                crossgrader.cache_package_debs(targets)
-
-                if not args.download_only:
-                    crossgrader.install_packages()
-            else:
-                print('Aborted')
-        elif args.third_stage:
-            # TODO: implement package exclusion
-            foreign_arch = args.third_stage
-            targets = crossgrader.get_arch_packages(foreign_arch)
-
-            print(f'{len(targets)} targets found.')
-            for pkg_name in sorted(targets):
-                print(pkg_name)
-
-            cont = input('Do you want to continue [y/N]? ').lower()
-            if cont == 'y':
-                subprocess.check_call(['dpkg', '--purge', *targets])
-                remaining = crossgrader.get_arch_packages(foreign_arch)
-                if remaining:
-                    print('The following packages could not be successfully purged:')
-                    for pkg_name in remaining:
-                        print(f'\t{pkg_name}')
-                else:
-                    print('All target successfully purged.')
-                    print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
-                           'complete the crossgrade.'))
-        else:
-            if args.packages:
-                targets = crossgrader.find_packages_from_names(args.packages)
-            else:
-                targets = crossgrader.list_first_stage_targets(
-                    ignore_initramfs_remnants=args.force_initramfs,
-                    ignore_unavailable_targets=args.force_unavailable
-                )
-
-            print(f'{len(targets)} targets found.')
-            for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
-                print(pkg_name)
-
-            cont = input('Do you want to continue [y/N]? ').lower()
-            if cont == 'y':
-                crossgrader.cache_package_debs(targets)
-
-                if not args.download_only:
-                    crossgrader.install_packages()
-            else:
-                print('Aborted.')
+    if args.install_from:
+        install_from(args)
+    elif args.second_stage:
+        second_stage(args)
+    elif args.third_stage:
+        third_stage(args)
+    else:
+        first_stage(args)
 
 
 if __name__ == '__main__':
