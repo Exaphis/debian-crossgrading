@@ -93,7 +93,6 @@ class Crossgrader:
 
         self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
                                                     encoding='UTF-8')
-
         self.target_arch = target_architecture
 
         self._apt_cache = apt.Cache()
@@ -265,11 +264,23 @@ class Crossgrader:
             PackageNotFoundError: A package requested was not available in APT's cache.
         """
         packages = []
-        for name in package_names:
-            name_with_arch = name if ':' in name else f'{name}:{self.target_arch}'
+        for name_with_arch in package_names:
+            if ':' in name_with_arch:
+                name, arch = name_with_arch.split(':')
+            else:
+                name = name_with_arch
+                arch = self.target_arch
+
+            # dpkg will not find the package if the specified architecture
+            # is the same as the current architecture
+            # it expects <name> instead of <name:arch>
+            if arch == self.current_arch:
+                target_name = name
+            else:
+                target_name = f'{name}:{arch}'
 
             try:
-                package = self._apt_cache[name_with_arch]
+                package = self._apt_cache[target_name]
 
                 if not ignore_installed or not package.is_installed:
                     packages.append(package)
