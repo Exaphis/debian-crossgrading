@@ -273,9 +273,8 @@ class Crossgrader:
                     packages.append(package)
             except KeyError:
                 if not ignore_unavailable_targets:
-                    print(f'Couldn\'t find {name_with_arch}, ignoring...')
                     raise PackageNotFoundError(name_with_arch)
-
+                print(f'Couldn\'t find {name_with_arch}, ignoring...')
         return packages
 
     def list_first_stage_targets(self, ignore_initramfs_remnants=False,
