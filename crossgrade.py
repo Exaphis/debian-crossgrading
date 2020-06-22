@@ -155,7 +155,8 @@ class Crossgrader:
 
             print(f'dpkg -i/--configure loop #{loop_count}')
             # display stdout, parse stderr for packages to try and reinstall
-            errs = subprocess.run(['dpkg', '-i', *packages_remaining], encoding='UTF-8',
+            errs = subprocess.run(['dpkg', '-i', f'--abort-after={len(packages_remaining)}',
+                                   *packages_remaining], encoding='UTF-8',
                                   stdout=sys.stdout,
                                   stderr=subprocess.PIPE, check=False).stderr.splitlines()
 
@@ -173,7 +174,8 @@ class Crossgrader:
                     capture_packages = True
 
             print('Running dpkg --configure -a...')
-            subprocess.run(['dpkg', '--configure', '-a'], check=False,
+            subprocess.run(['dpkg', '--configure', '-a',
+                            f'--abort-after={len(packages_remaining)}'], check=False,
                            stdout=sys.stdout, stderr=sys.stderr)
 
             for deb in packages_remaining:
