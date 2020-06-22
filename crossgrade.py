@@ -147,14 +147,20 @@ class Crossgrader:
         # TODO: Experiment with Guillem's suggestion
         # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
         # Summary: Use dpkg --unpack; dpkg --configure --pending instead of dpkg -i?
+
+        # set max error count so dpkg does not abort from too many errors
+        # multiply by 2 because a package can have multiple errors
+        max_error_count = len(packages_to_install) * 2
+
         loop_count = 0
         packages_remaining = packages_to_install
+
         while packages_remaining:
             loop_count += 1
 
             print(f'dpkg -i/--configure loop #{loop_count}')
             # display stdout, parse stderr for packages to try and reinstall
-            errs = subprocess.run(['dpkg', '-i', f'--abort-after={len(packages_remaining)}',
+            errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
                                    *packages_remaining], encoding='UTF-8',
                                   stdout=sys.stdout,
                                   stderr=subprocess.PIPE, check=False).stderr.splitlines()
@@ -174,7 +180,7 @@ class Crossgrader:
 
             print('Running dpkg --configure -a...')
             subprocess.run(['dpkg', '--configure', '-a',
-                            f'--abort-after={len(packages_remaining)}'], check=False,
+                            f'--abort-after={max_error_count}'], check=False,
                            stdout=sys.stdout, stderr=sys.stderr)
 
             for deb in packages_remaining:
