@@ -117,7 +117,136 @@ class Crossgrader:
         self._apt_cache.close()
 
     @staticmethod
-    def install_packages(packages_to_install=None):
+    def _fix_dpkg_errors(packages):
+        """Tries to fix the given packages that dpkg failed to install.
+
+        First, run apt install -f.
+
+        If the errors are still not fixed, remove all other co-installed packages
+        for packages declared M-A: same.
+
+        Returns:
+            True if all errors were fixed, False otherwise.
+        """
+
+        print('Running apt-get --fix-broken install...')
+        # let user select yes/no
+        process = subprocess.run(['apt-get', 'install', '-f'], check=False)
+        if process.returncode == 0:
+            return True
+
+        print('apt-get --fix-broken install failed.')
+        print('Removing all coinstalled packages...')
+        for package in packages:
+            package_status = subprocess.run(['dpkg', '-s', package],
+                                            stdout=subprocess.PIPE, stderr=sys.stderr,
+                                            env={'LC_ALL': 'C'}, encoding='UTF-8',
+                                            check=True).stdout.splitlines()
+            if 'Multi-Arch: same' not in package_status:
+                continue
+
+            # architecture should be specified for M-A: same packages
+            assert ':' in package
+
+            short_name = package[:package.index(':')]
+            coinstalled = subprocess.check_output(['dpkg-query', '-f',
+                                                   '${Package}:${Architecture}\n', '-W',
+                                                   short_name],
+                                                  encoding='UTF-8').splitlines()
+            for coinstalled_package in coinstalled:
+                if coinstalled_package == package:
+                    continue
+
+                process = subprocess.run(['dpkg', '--remove', '--force-depends',
+                                          coinstalled_package], check=False)
+                if process.returncode != 0:
+                    print(f'dpkg failed to remove {coinstalled_package}.')
+
+                    prerm_script = f'/var/lib/dpkg/info/{coinstalled_package}.prerm'
+                    if os.path.isfile(prerm_script):
+                        cont = input('Remove prerm script and try again [Y/n]? ').lower()
+
+                        if cont == 'y' or not cont:
+                            os.remove(prerm_script)
+
+                            subprocess.run(['dpkg', '--remove', '--force-depends',
+                                            coinstalled_package], check=False)
+
+        print('Running dpkg --configure -a ...')
+        process = subprocess.run(['dpkg', '--configure', '-a'], check=False)
+        if process.returncode != 0:
+            return False
+
+        print('Running apt-get --fix-broken install...')
+        process = subprocess.run(['apt-get', 'install', '-f'], check=False)
+        if process.returncode == 0:
+            return True
+
+        return False
+
+    @staticmethod
+    def _install_and_configure(debs_to_install):
+        """Runs one pass of dpkg -i and dpkg --configure -a on the input .deb files.
+
+        dpkg outputs failures in two ways: the .deb file that failed,
+        or the package name that failed.
+
+        .deb files are outputted if the installation totally failed in some way
+        (dependency error, etc.), so that the package wasn't added to the database.
+        They should be retried later.
+
+        package names are outputted if the installation didn't completely fail.
+        The errors should be fixed, and then dpkg --configure -a should be run.
+
+        Returns:
+            A list of .debs that failed to be installed, and a list of packages
+            that failed to be installed.
+        """
+
+        # set max error count so dpkg does not abort from too many errors
+        # multiply by 2 because a package can have multiple errors
+        max_error_count = max(50, len(debs_to_install) * 2)
+
+        # display stdout, parse stderr for packages to try and reinstall
+        # set LC_ALL=C because parsing errors relies on
+        # seeing 'Errors were encountered while processing'
+        errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
+                               *debs_to_install],
+                              encoding='UTF-8', env={'LC_ALL': 'C'},
+                              stdout=sys.stdout, stderr=subprocess.PIPE,
+                              check=False).stderr.splitlines()
+
+        failed_debs = []
+        failed_packages = []
+
+        capture_packages = False
+
+        if errs:
+            print('Errors:')
+
+            for line in errs:
+                print(line)
+                line = line.strip()
+
+                if capture_packages:
+                    if line.endswith('.deb'):
+                        assert os.path.isfile(line), f'{line} does not exist'
+                        failed_debs.append(line)
+                    else:
+                        failed_packages.append(line)
+
+                if line == 'Errors were encountered while processing:':
+                    capture_packages = True
+
+        print('Running dpkg --configure -a...')
+        subprocess.run(['dpkg', '--configure', '-a',
+                        f'--abort-after={max_error_count}'], check=False,
+                       stdout=sys.stdout, stderr=sys.stderr)
+
+        return failed_debs, failed_packages
+
+    @staticmethod
+    def install_packages(debs_to_install=None):
         """Installs specified .deb files.
 
         Installs the .deb files specified in packages_to_install
@@ -131,8 +260,8 @@ class Crossgrader:
             PackageInstallationError: Some of the packages were not successfully
                 installed/configured.
         """
-        if packages_to_install is None:
-            packages_to_install = glob('/var/cache/apt/archives/*.deb')
+        if debs_to_install is None:
+            debs_to_install = glob('/var/cache/apt/archives/*.deb')
 
         # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
         # easier to install/reconfigure repeatedly until errors resolve themselves
@@ -148,59 +277,41 @@ class Crossgrader:
         # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
         # Summary: Use dpkg --unpack; dpkg --configure --pending instead of dpkg -i?
 
-        # set max error count so dpkg does not abort from too many errors
-        # multiply by 2 because a package can have multiple errors
-        max_error_count = len(packages_to_install) * 2
-
         loop_count = 0
-        packages_remaining = packages_to_install
+        debs_remaining = debs_to_install
+        failed_packages = None
 
-        while packages_remaining:
+        while debs_remaining:
             loop_count += 1
-
             print(f'dpkg -i/--configure loop #{loop_count}')
-            # display stdout, parse stderr for packages to try and reinstall
-            errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
-                                   *packages_remaining], encoding='UTF-8',
-                                  stdout=sys.stdout,
-                                  stderr=subprocess.PIPE, check=False).stderr.splitlines()
 
-            failures = []
-            capture_packages = False
-            print('Errors:')
-            for line in errs:
-                print(line)
-                line = line.strip()
-                if capture_packages and line.endswith('.deb'):
-                    failures.append(line)
-                    assert os.path.isfile(line), f'{line} does not exist'
+            failed_debs, failed_packages = Crossgrader._install_and_configure(debs_remaining)
 
-                if line == 'Errors were encountered while processing:':
-                    capture_packages = True
-
-            print('Running dpkg --configure -a...')
-            subprocess.run(['dpkg', '--configure', '-a',
-                            f'--abort-after={max_error_count}'], check=False,
-                           stdout=sys.stdout, stderr=sys.stderr)
-
-            for deb in packages_remaining:
-                if deb not in failures:
+            for deb in debs_remaining:
+                if deb not in failed_debs:
                     os.remove(deb)
 
-            if len(failures) >= len(packages_remaining):
+            assert len(failed_debs) <= len(debs_remaining)
+
+            if len(failed_debs) == len(debs_remaining):
                 print('Number of failed installs did not decrease, halting...')
-                packages_remaining = failures
+                debs_remaining = failed_debs
                 break
 
-            packages_remaining = failures
+            debs_remaining = failed_debs
 
-            if packages_remaining:
-                print('The following packages were not fully installed, retrying...')
-                for package in packages_remaining:
-                    print(f'\t{package}')
+            if debs_remaining:
+                print('The following .deb files were not fully installed, retrying...')
+                for deb in debs_remaining:
+                    print(f'\t{deb}')
 
-        if packages_remaining:
-            raise PackageInstallationError(packages_remaining)
+        if debs_remaining:
+            raise PackageInstallationError(debs_remaining)
+
+        if failed_packages:
+            fixed = Crossgrader._fix_dpkg_errors(failed_packages)
+            if not fixed:
+                print('Some dpkg errors could not be fixed automatically.')
 
     def cache_package_debs(self, targets):
         """Cache specified packages.
