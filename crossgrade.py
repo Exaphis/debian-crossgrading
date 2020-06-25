@@ -84,6 +84,9 @@ class Crossgrader:
             InvalidArchitectureError: The given target_architecture is not recognized
                 by dpkg.
         """
+        # set LC_ALL=C so we can rely on command output being English
+        os.environ['LC_ALL'] = 'C'
+
         valid_architectures = subprocess.check_output(['dpkg-architecture', '--list-known'],
                                                       encoding='UTF-8').splitlines()
         if target_architecture not in valid_architectures:
@@ -140,8 +143,7 @@ class Crossgrader:
         for package in packages:
             package_status = subprocess.run(['dpkg', '-s', package],
                                             stdout=subprocess.PIPE, stderr=sys.stderr,
-                                            env={'LC_ALL': 'C'}, encoding='UTF-8',
-                                            check=True).stdout.splitlines()
+                                            encoding='UTF-8', check=True).stdout.splitlines()
             if 'Multi-Arch: same' not in package_status:
                 continue
 
@@ -208,11 +210,8 @@ class Crossgrader:
         max_error_count = max(50, len(debs_to_install) * 2)
 
         # display stdout, parse stderr for packages to try and reinstall
-        # set LC_ALL=C because parsing errors relies on
-        # seeing 'Errors were encountered while processing'
         errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
-                               *debs_to_install],
-                              encoding='UTF-8', env={'LC_ALL': 'C'},
+                               *debs_to_install], encoding='UTF-8',
                               stdout=sys.stdout, stderr=subprocess.PIPE,
                               check=False).stderr.splitlines()
 
