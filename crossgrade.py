@@ -480,6 +480,7 @@ class Crossgrader:
         # if python-apt is not crossgraded, it will not find any packages other than
         # its own architecture/installed packages
         targets.add('python3-apt')
+        targets.add('python3')
 
         targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
