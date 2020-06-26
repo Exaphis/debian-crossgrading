@@ -209,6 +209,7 @@ class Crossgrader:
         # multiply by 2 because a package can have multiple errors
         max_error_count = max(50, len(debs_to_install) * 2)
 
+        # TODO: print stderr and record it at the same time
         # display stdout, parse stderr for packages to try and reinstall
         errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
                                *debs_to_install], encoding='UTF-8',
@@ -238,6 +239,7 @@ class Crossgrader:
                     capture_packages = True
 
         print('Running dpkg --configure -a...')
+        # TODO: parse failed_packages from dpkg configure, not dpkg install
         subprocess.run(['dpkg', '--configure', '-a',
                         f'--abort-after={max_error_count}'], check=False,
                        stdout=sys.stdout, stderr=sys.stderr)
@@ -331,6 +333,12 @@ class Crossgrader:
 
         for target in targets:
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
+
+            # some packages (python3-apt) refuses to mark as install for some reason
+            if not target.marked_install:
+                print((f'Could not mark {target.fullname} for install, '
+                       'downloading binary directly.'))
+                target.candidate.fetch_binary('/var/cache/apt/archives')
 
         # fetch_archives() throws a more detailed error if a specific package
         # could not be downloaded for some reason.
