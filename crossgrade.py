@@ -308,8 +308,7 @@ class Crossgrader:
             raise PackageInstallationError(debs_remaining)
 
         if failed_packages:
-            fixed = Crossgrader._fix_dpkg_errors(failed_packages)
-            if not fixed:
+            if not Crossgrader._fix_dpkg_errors(failed_packages):
                 print('Some dpkg errors could not be fixed automatically.')
 
     def cache_package_debs(self, targets):
@@ -470,6 +469,10 @@ class Crossgrader:
             if self._is_first_stage_target(package):
                 targets.add(package.shortname)
 
+        # if python-apt is not crossgraded, it will not find any packages other than
+        # its own architecture/installed packages
+        targets.add('python3-apt')
+
         targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
@@ -584,7 +587,7 @@ def third_stage(args):
                 for pkg_name in remaining:
                     print(f'\t{pkg_name}')
             else:
-                print('All target successfully purged.')
+                print('All targets successfully purged.')
                 print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
                        'complete the crossgrade.'))
 
