@@ -239,7 +239,7 @@ class Crossgrader:
                                 text=True)
         __, __, errs = cmd_utils.tee_process(proc)
 
-        failed_debs, failed_packages = get_dpkg_failures(errs)
+        failed_debs, failed_packages = get_dpkg_failures(errs.splitlines())
 
         print('Running dpkg --configure -a...')
         proc = subprocess.Popen(['dpkg', '--configure', '-a',
@@ -247,7 +247,7 @@ class Crossgrader:
                                 stdout=sys.stdout, stderr=subprocess.PIPE)
         __, __, errs = cmd_utils.tee_process(proc)
 
-        new_failed_debs, new_failed_packages = get_dpkg_failures(errs)
+        new_failed_debs, new_failed_packages = get_dpkg_failures(errs.splitlines())
         failed_debs.update(new_failed_debs)
         failed_packages.update(new_failed_packages)
 
