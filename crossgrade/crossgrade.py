@@ -21,6 +21,8 @@ import traceback
 
 import apt
 
+import cmd_utils
+
 
 class CrossgradingError(Exception):
     """Base class for crossgrading exceptions."""
@@ -88,14 +90,14 @@ class Crossgrader:
         os.environ['LC_ALL'] = 'C'
 
         valid_architectures = subprocess.check_output(['dpkg-architecture', '--list-known'],
-                                                      encoding='UTF-8').splitlines()
+                                                      text=True).splitlines()
         if target_architecture not in valid_architectures:
             raise InvalidArchitectureError(f'{target_architecture} is not recognized by dpkg.')
 
         subprocess.check_call(['dpkg', '--add-architecture', target_architecture])
 
         self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
-                                                    encoding='UTF-8')
+                                                    text=True)
         self.target_arch = target_architecture
 
         self._apt_cache = apt.Cache()
@@ -143,7 +145,7 @@ class Crossgrader:
         for package in packages:
             package_status = subprocess.run(['dpkg', '-s', package],
                                             stdout=subprocess.PIPE, stderr=sys.stderr,
-                                            encoding='UTF-8', check=True).stdout.splitlines()
+                                            text=True, check=True).stdout.splitlines()
             if 'Multi-Arch: same' not in package_status:
                 continue
 
@@ -154,7 +156,7 @@ class Crossgrader:
             coinstalled = subprocess.check_output(['dpkg-query', '-f',
                                                    '${Package}:${Architecture}\n', '-W',
                                                    short_name],
-                                                  encoding='UTF-8').splitlines()
+                                                  text=True).splitlines()
             for coinstalled_package in coinstalled:
                 if coinstalled_package == package:
                     continue
@@ -205,46 +207,51 @@ class Crossgrader:
             that failed to be installed.
         """
 
-        # set max error count so dpkg does not abort from too many errors
-        # multiply by 2 because a package can have multiple errors
-        max_error_count = max(50, len(debs_to_install) * 2)
+        def get_dpkg_failures(dpkg_errs):
+            """Returns a tuple of (failed_debs, failed_packages) parsed from dpkg's stderr."""
+            debs = set()
+            packages = set()
 
-        # TODO: print stderr and record it at the same time
-        # display stdout, parse stderr for packages to try and reinstall
-        errs = subprocess.run(['dpkg', '-i', f'--abort-after={max_error_count}',
-                               *debs_to_install], encoding='UTF-8',
-                              stdout=sys.stdout, stderr=subprocess.PIPE,
-                              check=False).stderr.splitlines()
+            capture_packages = False
 
-        failed_debs = []
-        failed_packages = []
-
-        capture_packages = False
-
-        if errs:
-            print('Errors:')
-
-            for line in errs:
-                print(line)
+            for line in dpkg_errs:
                 line = line.strip()
 
                 if capture_packages:
                     if line.endswith('.deb'):
                         assert os.path.isfile(line), f'{line} does not exist'
-                        failed_debs.append(line)
+                        debs.add(line)
                     else:
-                        failed_packages.append(line)
+                        packages.add(line)
 
                 if line == 'Errors were encountered while processing:':
                     capture_packages = True
 
-        print('Running dpkg --configure -a...')
-        # TODO: parse failed_packages from dpkg configure, not dpkg install
-        subprocess.run(['dpkg', '--configure', '-a',
-                        f'--abort-after={max_error_count}'], check=False,
-                       stdout=sys.stdout, stderr=sys.stderr)
+            return debs, packages
 
-        return failed_debs, failed_packages
+        # set max error count so dpkg does not abort from too many errors
+        # multiply by 2 because a package can have multiple errors
+        max_error_count = max(50, len(debs_to_install) * 2)
+
+        proc = subprocess.Popen(['dpkg', '-i', f'--abort-after={max_error_count}',
+                                 *debs_to_install],
+                                stdout=sys.stdout, stderr=subprocess.PIPE,
+                                text=True)
+        __, __, errs = cmd_utils.tee_process(proc)
+
+        failed_debs, failed_packages = get_dpkg_failures(errs)
+
+        print('Running dpkg --configure -a...')
+        proc = subprocess.Popen(['dpkg', '--configure', '-a',
+                                 f'--abort-after={max_error_count}'],
+                                stdout=sys.stdout, stderr=subprocess.PIPE)
+        __, __, errs = cmd_utils.tee_process(proc)
+
+        new_failed_debs, new_failed_packages = get_dpkg_failures(errs)
+        failed_debs.update(new_failed_debs)
+        failed_packages.update(new_failed_packages)
+
+        return list(failed_debs), list(failed_packages)
 
     @staticmethod
     def install_packages(debs_to_install=None):
@@ -438,7 +445,7 @@ class Crossgrader:
 
         hook_packages = subprocess.check_output(['dpkg-query', '-S',
                                                  '/usr/share/initramfs-tools/hooks/*'],
-                                                encoding='UTF-8').splitlines()
+                                                text=True).splitlines()
         for hook_package in hook_packages:
             name, hook = hook_package.split(': ')
 
@@ -470,7 +477,7 @@ class Crossgrader:
         # dpkg-query instead takes <1 second
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], encoding='UTF-8').splitlines()
+                                                      '-W'], text=True).splitlines()
 
         for full_name in installed_packages:
             package = self._apt_cache[full_name]
@@ -500,7 +507,7 @@ class Crossgrader:
         targets = set()
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], encoding='UTF-8').splitlines()
+                                                      '-W'], text=True).splitlines()
         for full_name in installed_packages:
             package = self._apt_cache[full_name]
 
@@ -518,7 +525,7 @@ class Crossgrader:
         """Returns all the packages in the given architecture."""
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], encoding='UTF-8').splitlines()
+                                                      '-W'], text=True).splitlines()
 
         return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
 
