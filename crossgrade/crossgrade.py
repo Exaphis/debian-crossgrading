@@ -97,7 +97,7 @@ class Crossgrader:
         subprocess.check_call(['dpkg', '--add-architecture', target_architecture])
 
         self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
-                                                    text=True)
+                                                    text=True).strip()
         self.target_arch = target_architecture
 
         self._apt_cache = apt.Cache()
@@ -404,10 +404,7 @@ class Crossgrader:
             # dpkg will not find the package if the specified architecture
             # is the same as the current architecture
             # it expects <name> instead of <name:arch>
-            if arch == self.current_arch:
-                target_name = name
-            else:
-                target_name = f'{name}:{arch}'
+            target_name = f'{name}:{arch}'
 
             try:
                 package = self._apt_cache[target_name]

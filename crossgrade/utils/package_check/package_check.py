@@ -24,7 +24,7 @@ def package_list_to_dict(contents):
     """
     packages = {}
     for package_info in contents:
-        name, arch, status = package_info.split()
+        name, arch, status = package_info.split('\t')
         packages[f'{name}:{arch}'] = status
 
     return packages
@@ -34,7 +34,7 @@ def compare_package_list(input_file):
     """Compares your installed packages to list in the given file."""
     assert os.path.isfile(input_file)
 
-    curr_arch = subprocess.check_output(['dpkg', '--print-architecture'], text=True)
+    curr_arch = subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip()
 
     curr_packages = subprocess.check_output(['dpkg-query', '-f',
                                              '${Package}\t${Architecture}\t${Status}\n', '-W'],
@@ -55,7 +55,7 @@ def compare_package_list(input_file):
         if target_package not in curr_packages:
             found = False
         else:
-            found = target_package[package] == 'install ok installed'
+            found = curr_packages[target_package] == 'install ok installed'
 
         if not found:
             print(f'{target_package} is not installed in the target arch.', file=sys.stderr)
