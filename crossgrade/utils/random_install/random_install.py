@@ -32,8 +32,8 @@ def install_random(num_packages, choice_func=None):
             print(f'{package} marked for install')
             num_packages -= 1
 
-    cache.commit(apt.progress.TextFetchProgress(),
-                 apt.progress.InstallProgress())
+    cache.commit(apt.progress.text.AcquireProgress(),
+                 apt.progress.base.InstallProgress())
 
 
 def main():
