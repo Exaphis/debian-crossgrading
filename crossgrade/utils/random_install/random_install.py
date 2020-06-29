@@ -13,7 +13,7 @@ def install_random(num_packages, choice_func=None):
     """
     cache = apt.cache.Cache()
 
-    candidates = set()
+    candidates = []
     for package in cache.keys():
         package_obj = cache[package]
         if package_obj.is_installed:
@@ -21,11 +21,11 @@ def install_random(num_packages, choice_func=None):
         if choice_func is not None and not choice_func(package_obj):
             continue
 
-        candidates.add(package)
+        candidates.append(package)
 
     while num_packages > 0:
-        package = random.choice(candidates)
-        candidates.remove(package)
+        choice_idx = random.randrange(len(candidates))
+        package = candidates.pop(choice_idx)
 
         cache[package].mark_install()
         if cache[package].marked_install:
