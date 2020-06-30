@@ -2,6 +2,7 @@
 import argparse
 import random
 
+from apt import apt_pkg
 import apt
 import apt.progress
 
@@ -27,7 +28,11 @@ def install_random(num_packages, choice_func=None):
         choice_idx = random.randrange(len(candidates))
         package = candidates.pop(choice_idx)
 
-        cache[package].mark_install()
+        try:
+            cache[package].mark_install()
+        except apt_pkg.Error:
+            pass
+
         if cache[package].marked_install:
             print(f'{package} marked for install')
             num_packages -= 1
