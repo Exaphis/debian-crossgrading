@@ -145,7 +145,7 @@ class Crossgrader:
         for package in packages:
             package_status = subprocess.run(['dpkg', '-s', package],
                                             stdout=subprocess.PIPE, stderr=sys.stderr,
-                                            text=True, check=True).stdout.splitlines()
+                                            text=True, check=False).stdout.splitlines()
             if 'Multi-Arch: same' not in package_status:
                 continue
 
