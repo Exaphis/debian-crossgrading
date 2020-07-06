@@ -4,25 +4,20 @@ This repo contains my work and research for my Google Summer of Code 2020 projec
 
 The official project can be found at https://summerofcode.withgoogle.com/projects/#6528590289567744.
 
+## Usage
+
+Refer to [INSTRUCTIONS.md](INSTRUCTIONS.md)
+
 ## Progress
 
-### General crossgrade procedure
+### To-do
 
-1. Verify system is ready to crossgrade
-    - Check remaining storage
-    - Check apt - no broken dependencies/etc.
-    - Check for packages not available in target architecture
-2. Add new architecture to dpkg and update apt cache
-3. Prepping system for crossgrade
-    - Installing bootloader in target architecture
-    - Installing kernel for target architecture
-4. Crossgrade essential packages
-5. Final touches so reboot is successful
-    - Update target architecture initramfs
-    - Ensure bootloader boots with the right kernel and initramfs
-6. Reboot to new architecture
-7. Crossgrade qemu-user-static
-8. Crossgrade remaining packages
+- [ ] Rewrite code for Python 3.4 support (to support Jessie)
+    - [ ] Replacing f-strings with `''.format()`
+    - [ ] Replacing `text=True` with `universal_newlines=True`
+    - [ ] Replacing `subprocess.run()` calls
+- [ ] Check that arm64 -> amd64 still works
+- [ ] Initramfs binary arch checking
 
 ### arm64 -> amd64 crossgrade
 
