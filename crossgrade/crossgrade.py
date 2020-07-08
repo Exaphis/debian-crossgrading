@@ -546,6 +546,9 @@ def first_stage(args):
         for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
             print(pkg_name)
 
+        if args.dry_run:
+            return
+
         cont = input('Do you want to continue [y/N]? ').lower()
         if cont == 'y':
             crossgrader.cache_package_debs(targets)
@@ -567,6 +570,10 @@ def second_stage(args):
         )
 
         print(f'{len(targets)} targets found.')
+
+        if args.dry_run:
+            return
+
         cont = input('Do you want to continue [y/N]? ').lower()
         if cont == 'y':
             crossgrader.cache_package_debs(targets)
@@ -580,18 +587,24 @@ def second_stage(args):
 def third_stage(args):
     """Runs the third stage of the crossgrading process.
 
-    Removes all packages from the given architecture.
+    Removes all packages from the given architecture, excluding ones contained by args.packages.
     """
     with Crossgrader(args.target_arch) as crossgrader:
-        # TODO: implement package exclusion
         foreign_arch = args.third_stage
         targets = crossgrader.get_arch_packages(foreign_arch)
+
+        if args.packages:
+            targets = [pkg_name for pkg_name in targets if pkg_name not in args.packages]
 
         print(f'{len(targets)} targets found.')
         for pkg_name in sorted(targets):
             print(pkg_name)
 
         cont = input('Do you want to continue [y/N]? ').lower()
+
+        if args.dry_run:
+            return
+
         if cont == 'y':
             subprocess.check_call(['dpkg', '--purge', *targets])
             remaining = crossgrader.get_arch_packages(foreign_arch)
@@ -612,6 +625,9 @@ def install_from(args):
         print('Installing the following .debs:')
         for deb in debs:
             print(f'\t{deb}')
+
+        if args.dry_run:
+            return
 
         cont = input('Do you want to continue [y/N]? ').lower()
         if cont == 'y':
@@ -652,8 +668,13 @@ def main():
                         help='Equivalent to --force-install --force-initramfs',
                         action='store_true')
     parser.add_argument('-p', '--packages',
-                        help=('Crossgrade the subsequent package names and nothing else'),
+                        help=('Crossgrade the subsequent package names and nothing else. '
+                              'If used with --third-stage, the subsequent packages will '
+                              'be excluded from removal'),
                         nargs='+')
+    parser.add_argument('--dry-run',
+                        help='Run the crossgrader, but do not change anything',
+                        action='store_true')
     args = parser.parse_args()
 
     if args.force_all:
