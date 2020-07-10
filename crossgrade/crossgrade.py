@@ -15,6 +15,7 @@ Classes:
 import argparse
 from glob import glob
 import os
+import shutil
 import subprocess
 import sys
 import traceback
@@ -100,6 +101,18 @@ class Crossgrader:
                                                     text=True).strip()
         self.target_arch = target_architecture
 
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        self.arch_check_hook_path = os.path.join(os.path.dirname(script_dir),
+                                                 'arch-check-hook.sh')
+        self.initramfs_functions_path = '/usr/share/initramfs-tools/hook-functions'
+        self.initramfs_functions_backup_path = os.path.join(script_dir, 'hook-functions.bak')
+
+        print('Installing initramfs binary architecture check hook...')
+        if self.create_initramfs_arch_check():
+            print('Hook installed.')
+        else:
+            print('Hook installation failed.')
+
         self._apt_cache = apt.Cache()
 
         try:
@@ -120,6 +133,76 @@ class Crossgrader:
     def close(self):
         """Close the package cache"""
         self._apt_cache.close()
+
+    def create_initramfs_arch_check(self):
+        """Inserts the contents of arch-check-hook.sh into the copy_exec function.
+
+        It locates the start of the copy_exec function
+        in /usr/share/initramfs-tools/hook-functions, and inserts the arch check hook
+        to check the architecture of all binaries that are copied into the initramfs.
+
+        If the arch check hook already exists, then it is not copied.
+
+        The arch-test package must be installed for the hook to function.
+
+        Returns:
+            True if the hook was successfully installed, False otherwise.
+        """
+
+        if not os.path.isfile(self.initramfs_functions_path):
+            print('hook-functions file does not exist.')
+            return False
+
+        with open(self.initramfs_functions_path, 'r') as functions_file:
+            functions_lines = functions_file.splitlines()
+
+        # is there a better way than using a magic string?
+        if '# begin arch-check-hook' in functions_lines:
+            print('arch check hook already installed.')
+            return False
+
+        shutil.copy2(self.initramfs_functions_path, self.initramfs_functions_backup_path)
+        assert os.path.isfile(self.initramfs_functions_backup_path)
+
+        with open(self.arch_check_hook_path, 'r') as arch_hook_file:
+            arch_hook_lines = arch_hook_file.splitlines()
+        for idx, line in enumerate(arch_hook_lines):
+            arch_hook_lines[idx] = line.replace('TARGET_ARCH_PLACEHOLDER', self.target_arch)
+
+        try:
+            hook_index = functions_lines.index('copy_exec() {') + 1
+        except ValueError:
+            print('Could not find copy_exec function definition.')
+            return False
+
+        functions_lines = functions_lines[:hook_index] + arch_hook_lines + \
+                          functions_lines[hook_index + 1:]
+        with open(self.initramfs_functions_path, 'w') as functions_file:
+            functions_file.write('\n'.join(functions_lines))
+
+        return True
+
+    def remove_initramfs_arch_check(self):
+        """Restores the contents of hook-functions.
+
+        This function should be called at the end of the crossgrade process.
+        Currently, the hook is installed every time the Crossgrader function is created
+        and removed when during in the third_stage function.
+
+        Returns:
+            True if the hook was successfully removed, False otherwise.
+        """
+
+        if not os.path.isfile(self.initramfs_functions_backup_path):
+            print('Backup file does not exist.')
+            return False
+        if not os.path.isfile(self.initramfs_functions_path):
+            print('hook-functions file does not exist.')
+            return False
+
+        shutil.copy2(self.initramfs_functions_backup_path, self.initramfs_functions_path)
+        os.remove(self.initramfs_functions_backup_path)
+        return True
 
     @staticmethod
     def _fix_dpkg_errors(packages):
@@ -616,6 +699,12 @@ def third_stage(args):
                 print('All targets successfully purged.')
                 print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
                        'complete the crossgrade.'))
+
+            print('Removing initramfs binary architecture check hook...')
+            if crossgrader.remove_initramfs_arch_check():
+                print('Hook successfully removed.')
+            else:
+                print('Hook could not be removed.')
 
 
 def install_from(args):

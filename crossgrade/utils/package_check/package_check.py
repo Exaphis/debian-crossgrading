@@ -64,7 +64,7 @@ def compare_package_list(input_file):
 def main():
     """Main function of the script"""
     out_file = 'packages.txt'
-    script_dir = os.path.dirname(__file__)
+    script_dir = os.path.dirname(os.path.realpath(__file__))
 
     file_name = os.path.join(script_dir, out_file)
 
