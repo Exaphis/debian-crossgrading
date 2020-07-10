@@ -12,7 +12,7 @@
     - How to get architecture name outputted by `file` reliably?
         - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
         - Solution: get output of `file /bin/dpkg`
-- [] Packaging crossgrade tool
+- [ ] Packaging crossgrade tool
 
 Completed
 ---
