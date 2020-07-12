@@ -154,7 +154,7 @@ class Crossgrader:
             return False
 
         with open(self.initramfs_functions_path, 'r') as functions_file:
-            functions_lines = functions_file.splitlines()
+            functions_lines = functions_file.read()splitlines()
 
         # is there a better way than using a magic string?
         if '# begin arch-check-hook' in functions_lines:
@@ -165,7 +165,7 @@ class Crossgrader:
         assert os.path.isfile(self.initramfs_functions_backup_path)
 
         with open(self.arch_check_hook_path, 'r') as arch_hook_file:
-            arch_hook_lines = arch_hook_file.splitlines()
+            arch_hook_lines = arch_hook_file.read().splitlines()
         for idx, line in enumerate(arch_hook_lines):
             arch_hook_lines[idx] = line.replace('TARGET_ARCH_PLACEHOLDER', self.target_arch)
 

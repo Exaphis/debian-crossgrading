@@ -8,10 +8,6 @@
 
 #### Miscellaneous
 - [ ] Document crossgrade between architectures not supported on the same CPU
-- [ ] Initramfs binary arch verification
-    - How to get architecture name outputted by `file` reliably?
-        - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
-        - Solution: get output of `file /bin/dpkg`
 - [ ] Packaging crossgrade tool
 
 Completed
@@ -40,6 +36,11 @@ Completed
     - [x] Be able to to manually specify packages to crossgrade in script
     - [x] Second-stage functionality - crossgrading remaining packages
 
+#### Miscellaneous
+- [x] Initramfs binary arch verification
+    - How to get architecture name outputted by `file` reliably?
+        - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
+        - Solution: get output of `file /bin/dpkg`
 Notes
 ---
 - Should we make sure the size of the new initramfs will not exceed the total amount of RAM available?
