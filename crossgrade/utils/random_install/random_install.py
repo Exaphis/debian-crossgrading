@@ -34,7 +34,7 @@ def install_random(num_packages, choice_func=None):
             pass
 
         if cache[package].marked_install:
-            print(f'{package} marked for install')
+            print('{} marked for install'.format(package))
             num_packages -= 1
 
     cache.commit(apt.progress.text.AcquireProgress(),

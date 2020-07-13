@@ -11,11 +11,12 @@ def save_package_list(output_file):
 
     package_info = subprocess.check_output(['dpkg-query', '-f',
                                             '${Package}\t${Architecture}\t${Status}\n', '-W'],
-                                           text=True)
+                                           universal_newlines=True)
 
     with open(output_file, 'w') as packages_file:
         packages_file.write(package_info)
 
+    print('Packages saved.')
 
 def package_list_to_dict(contents):
     """Returns a dict version of a list containing package information.
@@ -25,7 +26,7 @@ def package_list_to_dict(contents):
     packages = {}
     for package_info in contents:
         name, arch, status = package_info.split('\t')
-        packages[f'{name}:{arch}'] = status
+        packages['{}:{}'.format(name, arch)] = status
 
     return packages
 
@@ -50,7 +51,7 @@ def compare_package_list(input_file):
         if status != 'install ok installed':
             continue
 
-        target_package = package if arch == 'all' else f'{name}:{curr_arch}'
+        target_package = package if arch == 'all' else '{}:{}'.format(name, curr_arch)
 
         if target_package not in curr_packages:
             found = False

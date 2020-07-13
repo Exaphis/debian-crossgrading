@@ -4,7 +4,7 @@
     - Replace `text=True` with `universal_newlines=True`
     - Replace `subprocess.run()` calls
     - [ ] Main crossgrade script
-    - [ ] Util scripts
+    - [x] Util scripts
 
 #### Miscellaneous
 - [ ] Document crossgrade between architectures not supported on the same CPU
