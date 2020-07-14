@@ -33,6 +33,10 @@ class InvalidArchitectureError(CrossgradingError):
     """Raised when a given architecture is not recognized by dpkg."""
 
 
+class NotEnoughSpaceError(CrossgradingError):
+    """Raised when there is not enough space left to download and install necessary packages."""
+
+
 class PackageInstallationError(CrossgradingError):
     """Raised when an error occurs while packages are being installed.
 
@@ -79,6 +83,8 @@ class Crossgrader:
         target_arch: A string representing the target architecture of dpkg.
         current_arch: A string representing the current architecture of dpkg.
     """
+
+    APT_CACHE_DIR = '/var/cache/apt/archives'
 
     def __init__(self, target_architecture):
         """Inits Crossgrader with the given target architecture.
@@ -154,7 +160,7 @@ class Crossgrader:
             return False
 
         with open(self.initramfs_functions_path, 'r') as functions_file:
-            functions_lines = functions_file.read()splitlines()
+            functions_lines = functions_file.read().splitlines()
 
         # is there a better way than using a magic string?
         if '# begin arch-check-hook' in functions_lines:
@@ -319,7 +325,7 @@ class Crossgrader:
         proc = subprocess.Popen(['dpkg', '-i', f'--abort-after={max_error_count}',
                                  *debs_to_install],
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
-                                text=True)
+                                universal_newlines=True)
         __, __, errs = cmd_utils.tee_process(proc)
 
         failed_debs, failed_packages = get_dpkg_failures(errs.splitlines())
@@ -352,7 +358,7 @@ class Crossgrader:
                 installed/configured.
         """
         if debs_to_install is None:
-            debs_to_install = glob('/var/cache/apt/archives/*.deb')
+            debs_to_install = glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb'))
 
         # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
         # easier to install/reconfigure repeatedly until errors resolve themselves
@@ -420,15 +426,34 @@ class Crossgrader:
         # use python-apt to cache .debs for package and dependencies
         # because apt-get --download-only install will not download
         # if it can't find a good way to resolve dependencies
-
+        unmarked = []
         for target in targets:
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
 
             # some packages (python3-apt) refuses to mark as install for some reason
+            # fetch them individually later
             if not target.marked_install:
                 print((f'Could not mark {target.fullname} for install, '
                        'downloading binary directly.'))
-                target.candidate.fetch_binary('/var/cache/apt/archives')
+                unmarked.append(target)
+
+        __, __, free_space = shutil.disk_usage(self.APT_CACHE_DIR)
+
+        required_space = 0
+        for target in unmarked:
+            required_space += target.candidate.installed_size
+            required_space += target.candidate.size
+
+        for package in self._apt_cache:
+            if package.marked_install:
+                required_space += package.candidate.installed_size
+                required_space += package.candidate.size
+
+        if required_space > free_space:
+            raise NotEnoughSpaceError(f'{free_space} bytes free but {required_space} required')
+
+        for target in unmarked:
+            target.candidate.fetch_binary(self.APT_CACHE_DIR)
 
         # fetch_archives() throws a more detailed error if a specific package
         # could not be downloaded for some reason.
@@ -710,7 +735,7 @@ def third_stage(args):
 def install_from(args):
     """Installs all .debs from the specified location."""
     with Crossgrader(args.target_arch) as crossgrader:
-        debs = glob(f'{args.install_from}/*.deb')
+        debs = glob(os.path.join(args.install_from, '*.deb'))
         print('Installing the following .debs:')
         for deb in debs:
             print(f'\t{deb}')
@@ -742,9 +767,9 @@ def main():
                         action='store_true')
     parser.add_argument('--install-from',
                         help=('Perform .deb installation from a specified location '
-                              '(default: /var/cache/apt/archives), '
+                              f'(default: {Crossgrader.APT_CACHE_DIR}), '
                               'but not package listing and download'),
-                        nargs='?', const='/var/cache/apt/archives')
+                        nargs='?', const=Crossgrader.APT_CACHE_DIR)
     parser.add_argument('--force-unavailable',
                         help=('Force crossgrade even if not all packages to be crossgraded'
                               ' are available in the target architecture'),
