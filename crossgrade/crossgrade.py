@@ -72,7 +72,7 @@ class PackageNotFoundError(CrossgradingError):
     """
 
     def __init__(self, package):
-        super().__init__('{} could not be found in APT\'s cache'.format(package))
+        super().__init__("{} could not be found in APT's cache".format(package))
         self.package = package
 
 
@@ -82,6 +82,10 @@ class Crossgrader:
     Attributes:
         target_arch: A string representing the target architecture of dpkg.
         current_arch: A string representing the current architecture of dpkg.
+        initramfs_functions_path: Path to the initramfs hook-functions file.
+        initramfs_functions_backup_path: Path to the backup of hook-functions.
+        non_supported_arch: A boolean indicating whether the target arch is natively supported
+            by the current CPU.
     """
 
     APT_CACHE_DIR = '/var/cache/apt/archives'
@@ -110,6 +114,34 @@ class Crossgrader:
                                                     universal_newlines=True).strip()
         self.target_arch = target_architecture
 
+        arch_test_ret = subprocess.call(['arch-test', '-n', self.target_arch],
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if arch_test_ret != 0:
+            if arch_test_ret == 2:
+                print(('arch-test lacks a helper for {}; assuming not supported on this machine '
+                       'but runnable with emulation.').format(self.target_arch))
+                # TODO: more caution? ask for flag?
+            elif arch_test_ret == 1:
+                # ensure target arch can be run with emulation for foreign package setup
+                support_with_emu = subprocess.call(['arch-test', self.target_arch],
+                                                   stdout=subprocess.DEVNULL,
+                                                   stderr=subprocess.DEVNULL) == 0
+                if not support_with_emu:
+                    raise InvalidArchitectureError(
+                        ('Architecture {} is not runnable on this machine. Please install '
+                         'qemu-user-static and try again.').format(self.target_arch)
+                    )
+            else:
+                raise CrossgradingError('Ensure arch-test is installed.')
+
+            self.non_supported_arch = True
+        else:
+            self.non_supported_arch = False
+
+        if self.non_supported_arch:
+            print(('Architecture {} is not natively supported '
+                   'on the current machine.').format(self.target_arch))
+
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.arch_check_hook_path = os.path.join(os.path.dirname(script_dir),
                                                  'arch-check-hook.sh')
@@ -123,7 +155,6 @@ class Crossgrader:
             print('Hook installation failed.')
 
         self._apt_cache = apt.Cache()
-
         try:
             self._apt_cache.update(apt.progress.text.AcquireProgress())
             self._apt_cache.open()  # re-open to utilise new cache
