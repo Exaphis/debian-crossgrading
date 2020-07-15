@@ -107,7 +107,7 @@ class Crossgrader:
         subprocess.check_call(['dpkg', '--add-architecture', target_architecture])
 
         self.current_arch = subprocess.check_output(['dpkg', '--print-architecture'],
-                                                    text=True).strip()
+                                                    universal_newlines=True).strip()
         self.target_arch = target_architecture
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -228,16 +228,17 @@ class Crossgrader:
 
         print('Running apt-get --fix-broken install...')
         # let user select yes/no
-        process = subprocess.run(['apt-get', 'install', '-f'], check=False)
-        if process.returncode == 0:
+        ret_code = subprocess.call(['apt-get', 'install', '-f'])
+        if ret_code == 0:
             return True
 
         print('apt-get --fix-broken install failed.')
         print('Removing all coinstalled packages...')
         for package in packages:
-            package_status = subprocess.run(['dpkg', '-s', package],
-                                            stdout=subprocess.PIPE, stderr=sys.stderr,
-                                            text=True, check=False).stdout.splitlines()
+            package_status_proc = subprocess.Popen(['dpkg', '-s', package],
+                                                   stdout=subprocess.PIPE, stderr=sys.stderr,
+                                                   universal_newlines=True)
+            package_status, __ = package_status_proc.communicate()
             if 'Multi-Arch: same' not in package_status:
                 continue
 
@@ -248,35 +249,39 @@ class Crossgrader:
             coinstalled = subprocess.check_output(['dpkg-query', '-f',
                                                    '${Package}:${Architecture}\n', '-W',
                                                    short_name],
-                                                  text=True).splitlines()
+                                                  universal_newlines=True).splitlines()
             for coinstalled_package in coinstalled:
                 if coinstalled_package == package:
                     continue
 
-                process = subprocess.run(['dpkg', '--remove', '--force-depends',
-                                          coinstalled_package], check=False)
-                if process.returncode != 0:
-                    print('dpkg failed to remove {}.'.format(coinstalled_package))
+                ret_code = subprocess.call(['dpkg', '--remove', '--force-depends',
+                                            coinstalled_package])
+                if ret_code == 0:
+                    continue
 
-                    prerm_script = '{}.prerm'.format(coinstalled_package)
-                    prerm_script = os.path.join(Crossgrader.DPKG_INFO_DIR, prerm_script)
+                print('dpkg failed to remove {}.'.format(coinstalled_package))
 
-                    if os.path.isfile(prerm_script):
-                        cont = input('Remove prerm script and try again [Y/n]? ').lower()
+                prerm_script = '{}.prerm'.format(coinstalled_package)
+                prerm_script = os.path.join(Crossgrader.DPKG_INFO_DIR, prerm_script)
 
-                        if cont == 'y' or not cont:
-                            os.remove(prerm_script)
-                            subprocess.run(['dpkg', '--remove', '--force-depends',
-                                            coinstalled_package], check=False)
+                if os.path.isfile(prerm_script):
+                    print('prerm script found: {}'.format(prerm_script))
+                    cont = input('Remove prerm script and try again [Y/n]? ').lower()
+                    if cont == 'y' or not cont:
+                        os.remove(prerm_script)
+                        ret_code = subprocess.call(['dpkg', '--remove', '--force-depends',
+                                                    coinstalled_package])
+                        if ret_code != 0:
+                            print("Couldn't remove {}.".format(coinstalled_package))
 
         print('Running dpkg --configure -a ...')
-        process = subprocess.run(['dpkg', '--configure', '-a'], check=False)
-        if process.returncode != 0:
+        ret_code = subprocess.call(['dpkg', '--configure', '-a'])
+        if ret_code != 0:
             return False
 
         print('Running apt-get --fix-broken install...')
-        process = subprocess.run(['apt-get', 'install', '-f'], check=False)
-        if process.returncode == 0:
+        ret_code = subprocess.call(['apt-get', 'install', '-f'])
+        if ret_code == 0:
             return True
 
         return False
@@ -554,7 +559,7 @@ class Crossgrader:
 
         hook_packages = subprocess.check_output(['dpkg-query', '-S',
                                                  '/usr/share/initramfs-tools/hooks/*'],
-                                                text=True).splitlines()
+                                                universal_newlines=True).splitlines()
         for hook_package in hook_packages:
             name, hook = hook_package.split(': ')
 
@@ -586,7 +591,7 @@ class Crossgrader:
         # dpkg-query instead takes <1 second
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], text=True).splitlines()
+                                                      '-W'], universal_newlines=True).splitlines()
 
         for full_name in installed_packages:
             package = self._apt_cache[full_name]
@@ -615,7 +620,7 @@ class Crossgrader:
         targets = set()
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], text=True).splitlines()
+                                                      '-W'], universal_newlines=True).splitlines()
         for full_name in installed_packages:
             package = self._apt_cache[full_name]
 
@@ -632,7 +637,7 @@ class Crossgrader:
         """Returns all the packages in the given architecture."""
         installed_packages = subprocess.check_output(['dpkg-query', '-f',
                                                       '${Package}:${Architecture}\n',
-                                                      '-W'], text=True).splitlines()
+                                                      '-W'], universal_newlines=True).splitlines()
 
         return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
 
