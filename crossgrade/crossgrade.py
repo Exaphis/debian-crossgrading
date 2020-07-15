@@ -80,16 +80,31 @@ class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
     Attributes:
-        target_arch: A string representing the target architecture of dpkg.
-        current_arch: A string representing the current architecture of dpkg.
+        script_dir: Path to directory containing current script
         initramfs_functions_path: Path to the initramfs hook-functions file.
         initramfs_functions_backup_path: Path to the backup of hook-functions.
+        qemu_deb_path: Path to a directory containing temporary cached qemu debs.
+
+        target_arch: A string representing the target architecture of dpkg.
+        current_arch: A string representing the current architecture of dpkg.
         non_supported_arch: A boolean indicating whether the target arch is natively supported
             by the current CPU.
     """
 
     APT_CACHE_DIR = '/var/cache/apt/archives'
     DPKG_INFO_DIR = '/var/lib/dpkg/info'
+    QEMU_DEB_DIR = 'qemu-debs'
+
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
+    # during first stage
+    # if it exists, its debs will be installed before second stage
+    qemu_deb_path = os.path.join(script_dir, QEMU_DEB_DIR)
+    arch_check_hook_path = os.path.join(os.path.dirname(script_dir),
+                                        'arch-check-hook.sh')
+    initramfs_functions_path = '/usr/share/initramfs-tools/hook-functions'
+    initramfs_functions_backup_path = os.path.join(script_dir, 'hook-functions.bak')
 
     def __init__(self, target_architecture):
         """Inits Crossgrader with the given target architecture.
@@ -141,12 +156,6 @@ class Crossgrader:
         if self.non_supported_arch:
             print(('Architecture {} is not natively supported '
                    'on the current machine.').format(self.target_arch))
-
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        self.arch_check_hook_path = os.path.join(os.path.dirname(script_dir),
-                                                 'arch-check-hook.sh')
-        self.initramfs_functions_path = '/usr/share/initramfs-tools/hook-functions'
-        self.initramfs_functions_backup_path = os.path.join(script_dir, 'hook-functions.bak')
 
         print('Installing initramfs binary architecture check hook...')
         if self.create_initramfs_arch_check():
@@ -449,14 +458,15 @@ class Crossgrader:
             if not Crossgrader._fix_dpkg_errors(failed_packages):
                 print('Some dpkg errors could not be fixed automatically.')
 
-    def cache_package_debs(self, targets):
+    def cache_package_debs(self, targets, target_dir=None):
         """Cache specified packages.
 
         Clears APT's .deb cache, then downloads specified packages
-        to /var/apt/cache/archives using python-apt.
+        to /var/apt/cache/archives or the given target_dir using python-apt.
 
         Args:
             targets: A list of apt.package.Package objects to crossgrade.
+            target_dir: If target_dir set, move all cached .debs the given directory.
         """
 
         # clean /var/cache/apt/archives for download
@@ -503,6 +513,12 @@ class Crossgrader:
         self._apt_cache.fetch_archives()
 
         self._apt_cache.clear()
+
+        if target_dir is not None:
+            os.makedirs(target_dir, exist_ok=True)
+
+            for deb in glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb')):
+                shutil.move(deb, target_dir)
 
     def _is_first_stage_target(self, package):
         """Returns a boolean of whether or not the apt.package.Package is a first stage target.
@@ -701,6 +717,14 @@ def first_stage(args):
 
             if not args.download_only:
                 crossgrader.install_packages()
+
+                if crossgrader.non_supported_arch:
+                    print('Saving qemu-user-static debs for second stage...')
+                    qemu_pkgs = crossgrader.find_packages_from_names(
+                        ['qemu-user-static', 'binfmt-support']
+                    )
+                    crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
+                    print('qemu-user-static saved.')
         else:
             print('Aborted.')
 
@@ -711,6 +735,19 @@ def second_stage(args):
     Crossgrades all packages that are not in the target architecture.
     """
     with Crossgrader(args.target_arch) as crossgrader:
+        # crossgrade qemu-user-static first to prevent list_second_stage_targets
+        # from finding it
+        if os.path.isdir(crossgrader.qemu_deb_path):
+            if not args.dry_run:
+                print('Crossgrading saved qemu-user-static...')
+                crossgrader.install_packages(
+                    glob(os.path.join(crossgrader.qemu_deb_path, '*.deb'))
+                )
+                os.rmdir(crossgrader.qemu_deb_path)
+                print('qemu-user-static successfully crossgraded.')
+            else:
+                print('qemu-user-static crossgrade skipped.')
+
         targets = crossgrader.list_second_stage_targets(
             ignore_unavailable_targets=args.force_unavailable
         )
