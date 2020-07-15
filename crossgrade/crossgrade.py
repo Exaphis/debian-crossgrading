@@ -46,7 +46,7 @@ class PackageInstallationError(CrossgradingError):
 
     def __init__(self, packages):
         super().__init__('An error occurred installing the '
-                         f'following packages: {str(packages)}')
+                         'following packages: {}'.format(packages))
         self.packages = packages
 
 
@@ -60,7 +60,7 @@ class RemnantInitramfsHooksError(CrossgradingError):
 
     def __init__(self, hooks):
         super().__init__('The following initramfs hooks could not be '
-                         f'linked to packages: {str(hooks)}')
+                         'linked to packages: {}'.format(hooks))
         self.hooks = hooks
 
 
@@ -72,7 +72,7 @@ class PackageNotFoundError(CrossgradingError):
     """
 
     def __init__(self, package):
-        super().__init__(f'{package} could not be found in APT\'s cache')
+        super().__init__('{} could not be found in APT\'s cache'.format(package))
         self.package = package
 
 
@@ -85,6 +85,7 @@ class Crossgrader:
     """
 
     APT_CACHE_DIR = '/var/cache/apt/archives'
+    DPKG_INFO_DIR = '/var/lib/dpkg/info'
 
     def __init__(self, target_architecture):
         """Inits Crossgrader with the given target architecture.
@@ -97,9 +98,11 @@ class Crossgrader:
         os.environ['LC_ALL'] = 'C'
 
         valid_architectures = subprocess.check_output(['dpkg-architecture', '--list-known'],
-                                                      text=True).splitlines()
+                                                      universal_newlines=True).splitlines()
         if target_architecture not in valid_architectures:
-            raise InvalidArchitectureError(f'{target_architecture} is not recognized by dpkg.')
+            raise InvalidArchitectureError(
+                'Architecture {} is not recognized by dpkg.'.format(target_architecture)
+            )
 
         subprocess.check_call(['dpkg', '--add-architecture', target_architecture])
 
@@ -253,15 +256,16 @@ class Crossgrader:
                 process = subprocess.run(['dpkg', '--remove', '--force-depends',
                                           coinstalled_package], check=False)
                 if process.returncode != 0:
-                    print(f'dpkg failed to remove {coinstalled_package}.')
+                    print('dpkg failed to remove {}.'.format(coinstalled_package))
 
-                    prerm_script = f'/var/lib/dpkg/info/{coinstalled_package}.prerm'
+                    prerm_script = '{}.prerm'.format(coinstalled_package)
+                    prerm_script = os.path.join(Crossgrader.DPKG_INFO_DIR, prerm_script)
+
                     if os.path.isfile(prerm_script):
                         cont = input('Remove prerm script and try again [Y/n]? ').lower()
 
                         if cont == 'y' or not cont:
                             os.remove(prerm_script)
-
                             subprocess.run(['dpkg', '--remove', '--force-depends',
                                             coinstalled_package], check=False)
 
@@ -308,7 +312,7 @@ class Crossgrader:
 
                 if capture_packages:
                     if line.endswith('.deb'):
-                        assert os.path.isfile(line), f'{line} does not exist'
+                        assert os.path.isfile(line), '{} does not exist'.format(line)
                         debs.add(line)
                     else:
                         packages.add(line)
@@ -322,8 +326,9 @@ class Crossgrader:
         # multiply by 2 because a package can have multiple errors
         max_error_count = max(50, len(debs_to_install) * 2)
 
-        proc = subprocess.Popen(['dpkg', '-i', f'--abort-after={max_error_count}',
-                                 *debs_to_install],
+        error_count_option = '--abort-after={}'.format(max_error_count)
+
+        proc = subprocess.Popen(['dpkg', '-i', error_count_option, *debs_to_install],
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
         __, __, errs = cmd_utils.tee_process(proc)
@@ -331,8 +336,7 @@ class Crossgrader:
         failed_debs, failed_packages = get_dpkg_failures(errs.splitlines())
 
         print('Running dpkg --configure -a...')
-        proc = subprocess.Popen(['dpkg', '--configure', '-a',
-                                 f'--abort-after={max_error_count}'],
+        proc = subprocess.Popen(['dpkg', '--configure', '-a', error_count_option],
                                 stdout=sys.stdout, stderr=subprocess.PIPE)
         __, __, errs = cmd_utils.tee_process(proc)
 
@@ -380,7 +384,7 @@ class Crossgrader:
 
         while debs_remaining:
             loop_count += 1
-            print(f'dpkg -i/--configure loop #{loop_count}')
+            print('dpkg -i/--configure loop #{}'.format(loop_count))
 
             failed_debs, failed_packages = Crossgrader._install_and_configure(debs_remaining)
 
@@ -400,7 +404,7 @@ class Crossgrader:
             if debs_remaining:
                 print('The following .deb files were not fully installed, retrying...')
                 for deb in debs_remaining:
-                    print(f'\t{deb}')
+                    print('\t{}'.format(deb))
 
         if debs_remaining:
             raise PackageInstallationError(debs_remaining)
@@ -433,8 +437,8 @@ class Crossgrader:
             # some packages (python3-apt) refuses to mark as install for some reason
             # fetch them individually later
             if not target.marked_install:
-                print((f'Could not mark {target.fullname} for install, '
-                       'downloading binary directly.'))
+                print(('Could not mark {} for install, '
+                       'downloading binary directly.').format(target.full_name))
                 unmarked.append(target)
 
         __, __, free_space = shutil.disk_usage(self.APT_CACHE_DIR)
@@ -450,7 +454,9 @@ class Crossgrader:
                 required_space += package.candidate.size
 
         if required_space > free_space:
-            raise NotEnoughSpaceError(f'{free_space} bytes free but {required_space} required')
+            raise NotEnoughSpaceError(
+                '{} bytes free but {} bytes required'.format(free_space, required_space)
+            )
 
         for target in unmarked:
             target.candidate.fetch_binary(self.APT_CACHE_DIR)
@@ -509,20 +515,18 @@ class Crossgrader:
                 name = name_with_arch
                 arch = self.target_arch
 
-            # dpkg will not find the package if the specified architecture
-            # is the same as the current architecture
-            # it expects <name> instead of <name:arch>
-            target_name = f'{name}:{arch}'
+            target_name = '{}:{}'.format(name, arch)
 
             try:
                 package = self._apt_cache[target_name]
-
                 if not ignore_installed or not package.is_installed:
                     packages.append(package)
             except KeyError:
                 if not ignore_unavailable_targets:
                     raise PackageNotFoundError(name_with_arch)
-                print(f'Couldn\'t find {name_with_arch}, ignoring...')
+                else:
+                    print("Couldn't find {}, ignoring...".format(name_with_arch))
+
         return packages
 
     def list_first_stage_targets(self, ignore_initramfs_remnants=False,
@@ -555,8 +559,8 @@ class Crossgrader:
             name, hook = hook_package.split(': ')
 
             if hook not in unaccounted_hooks:
-                print(f'Expected {name} to contain an initramfs hook, but it does not.')
-                print(f'Skipping {name}.')
+                print('Expected {} to contain an initramfs hook, but it does not.'.format(name))
+                print('Skipping.')
                 continue
 
             unaccounted_hooks.remove(hook)
@@ -564,7 +568,7 @@ class Crossgrader:
             package = self._apt_cache[name]
 
             if not package.is_installed:
-                print((f'WARNING: {package}, containing an initramfs hook, ',
+                print(('WARNING: {}, containing an initramfs hook, '.format(package),
                        'is marked as not fully installed.'))
                 print('Assuming it is installed.')
                 architecture = package.candidate.architecture
@@ -594,7 +598,6 @@ class Crossgrader:
         targets.add('python3-apt')
         targets.add('python3')
 
-        targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
     def list_second_stage_targets(self, ignore_unavailable_targets):
@@ -622,7 +625,6 @@ class Crossgrader:
             if package.installed.architecture not in ('all', self.target_arch):
                 targets.add(package.shortname)
 
-        targets = [f'{short_name}:{self.target_arch}' for short_name in targets]
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
     @staticmethod
@@ -650,7 +652,7 @@ def first_stage(args):
                 ignore_unavailable_targets=args.force_unavailable
             )
 
-        print(f'{len(targets)} targets found.')
+        print('{} targets found.'.format(len(targets)))
         for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
             print(pkg_name)
 
@@ -677,7 +679,7 @@ def second_stage(args):
             ignore_unavailable_targets=args.force_unavailable
         )
 
-        print(f'{len(targets)} targets found.')
+        print('{} targets found.'.format(len(targets)))
 
         if args.dry_run:
             return
@@ -704,7 +706,7 @@ def third_stage(args):
         if args.packages:
             targets = [pkg_name for pkg_name in targets if pkg_name not in args.packages]
 
-        print(f'{len(targets)} targets found.')
+        print('{} targets found.'.format(len(targets)))
         for pkg_name in sorted(targets):
             print(pkg_name)
 
@@ -719,11 +721,11 @@ def third_stage(args):
             if remaining:
                 print('The following packages could not be successfully purged:')
                 for pkg_name in remaining:
-                    print(f'\t{pkg_name}')
+                    print('\t{}'.format(pkg_name))
             else:
                 print('All targets successfully purged.')
-                print((f'If desired, run dpkg --remove-architecture {foreign_arch} to '
-                       'complete the crossgrade.'))
+                print(('If desired, run dpkg --remove-architecture {} '
+                       'to complete the crossgrade.').format(foreign_arch))
 
             print('Removing initramfs binary architecture check hook...')
             if crossgrader.remove_initramfs_arch_check():
@@ -738,7 +740,7 @@ def install_from(args):
         debs = glob(os.path.join(args.install_from, '*.deb'))
         print('Installing the following .debs:')
         for deb in debs:
-            print(f'\t{deb}')
+            print('\t{}'.format(deb))
 
         if args.dry_run:
             return
@@ -767,8 +769,8 @@ def main():
                         action='store_true')
     parser.add_argument('--install-from',
                         help=('Perform .deb installation from a specified location '
-                              f'(default: {Crossgrader.APT_CACHE_DIR}), '
-                              'but not package listing and download'),
+                              '(default: {}), but not package listing '
+                              'and download').format(Crossgrader.APT_CACHE_DIR),
                         nargs='?', const=Crossgrader.APT_CACHE_DIR)
     parser.add_argument('--force-unavailable',
                         help=('Force crossgrade even if not all packages to be crossgraded'
