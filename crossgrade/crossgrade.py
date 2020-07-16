@@ -484,7 +484,7 @@ class Crossgrader:
             # fetch them individually later
             if not target.marked_install:
                 print(('Could not mark {} for install, '
-                       'downloading binary directly.').format(target.full_name))
+                       'downloading binary directly.').format(target.fullname))
                 unmarked.append(target)
 
         __, __, free_space = shutil.disk_usage(self.APT_CACHE_DIR)
@@ -713,18 +713,21 @@ def first_stage(args):
 
         cont = input('Do you want to continue [y/N]? ').lower()
         if cont == 'y':
+            # cache qemu debs first because internet access might go down
+            # after crossgrade
+            qemu_path_exists = os.path.isdir(crossgrader.qemu_deb_path)
+            if crossgrader.non_supported_arch and not qemu_path_exists:
+                print('Saving qemu-user-static debs for second stage...')
+                qemu_pkgs = crossgrader.find_packages_from_names(
+                    ['qemu-user-static', 'binfmt-support']
+                )
+                crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
+                print('qemu-user-static saved.')
+
             crossgrader.cache_package_debs(targets)
 
             if not args.download_only:
                 crossgrader.install_packages()
-
-                if crossgrader.non_supported_arch:
-                    print('Saving qemu-user-static debs for second stage...')
-                    qemu_pkgs = crossgrader.find_packages_from_names(
-                        ['qemu-user-static', 'binfmt-support']
-                    )
-                    crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
-                    print('qemu-user-static saved.')
         else:
             print('Aborted.')
 
