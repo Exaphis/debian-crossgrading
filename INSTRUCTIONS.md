@@ -1,16 +1,24 @@
-Converting an i386 system to amd64
----
-
 #### Backup the system
 
-Crossgrading a Debian install is currently very experimental and prone to breakages. Please, please, **please** back up your data before continuing!
+Crossgrading a Debian install is currently experimental and prone to breakages. Please, please, **please** back up your data before continuing!
 
-#### TODO: package saving
+#### Saving a list of currently installed packages
+
+```
+$ python3 crossgrade/utils/package_check/package_check.py
+Saving currently installed packages...
+Packages saved.
+```
+
+After crossgrading, run `python3 crossgrade/util/package_check/package_check.py` to verify that all packages were actually crossgraded.
+
+Converting an i386 system to amd64
+---
 
 #### Setting up the crossgrade script
 
 ```
-# apt install git dpk-dev
+# apt install git dpkg-dev arch-test
 # git clone https://salsa.debian.org/crossgrading-team/debian-crossgrading.git ~/debian-crossgrading
 ```
 
@@ -52,21 +60,21 @@ Crossgrade all packages not in the target architecture (amd64).
 # python3 crossgrade.py amd64 --second-stage
 ```
 
-Most likely, some packages (e.g. `linux-image-686-pae`) will not have amd64 versions. If so, use the --force-unavailable flag to perform the crossgrade anyway.
+If a `PackageNotFoundError` is raised, use `--dry-run` with `--force-unavailable` to list all packages that cannot be crossgraded.
 
-TODO: dry run option
+Most likely, some packages (e.g. `linux-image-686-pae`) will not have amd64 versions. If the packages do not need to be crossgraded, remove the packages manually and re-run the command. Alternatively, use the `--force-unavailable` flag to perform the crossgrade anyway.
 
-After this point, apt and dpkg should no longer complain about any broken/unconfigured packages. If any still remain, fix them manually.
+After the second stage is complete, apt and dpkg should no longer complain about any broken/unconfigured packages. If any still remain, fix them manually.
 
 #### Third stage -- cleanup
 
-Removes all packages now deemed unnecessary by apt.
+Remove all packages now deemed unnecessary by apt.
 
 ```
 # apt autoremove
 ```
 
-Removes all packages in the given architecture (i386).
+Remove all packages in the given architecture (i386).
 
 ```
 # python3 crossgrade.py amd64 --third-stage i386
@@ -77,6 +85,8 @@ No packages should exist in the i386 architecture anymore, so it can be removed 
 ```
 # dpkg --remove-architecture i386
 ```
+
+The crossgrade is complete!
 
 Asciicasts
 ---
@@ -90,3 +100,27 @@ The process is separated by system reboots into three asciicasts.
 [![asciicast2](https://asciinema.org/a/bBYeBAlCii0qDpkog3XHTwIi8.png)](https://asciinema.org/a/bBYeBAlCii0qDpkog3XHTwIi8)
 
 [![asciicast3](https://asciinema.org/a/GtdoAGtxsrAfHnyGiRu2QwPLs.png)](https://asciinema.org/a/GtdoAGtxsrAfHnyGiRu2QwPLs)
+
+Converting an arm64 system to amd64
+---
+
+```
+# apt update
+# apt upgrade
+# apt install qemu-user-static git dpkg-dev arch-test
+# dpkg --add-architecture amd64
+# apt update
+# apt install linux-image-amd64:amd64 grub-efi:amd64
+# git clone https://salsa.debian.org/crossgrading-team/debian-crossgrading.git
+# cd debian-crossgrading
+# python3 crossgrade/crossgrade.py amd64
+# update-initramfs -u -k all  # might take a long time
+# reboot
+```
+
+```
+# cd debian-crossgrading
+# python3 crossgrade/crossgrade.py amd64 --second-stage
+# python3 crossgrade/crossgrade.py amd64 --third-stage arm64
+# dpkg --remove-architecture arm64
+```
