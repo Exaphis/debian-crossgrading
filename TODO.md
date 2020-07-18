@@ -1,14 +1,7 @@
-#### Supporting Debian Jessie
-- [ ] Rewrite code for Python 3.4 support
-    - Replace f-strings with `''.format()`
-    - Replace `text=True` with `universal_newlines=True`
-    - Replace `subprocess.run()` calls
-    - [ ] Main crossgrade script
-    - [x] Util scripts
-
 #### Miscellaneous
-- [ ] Document crossgrade between architectures not supported on the same CPU
+- [x] Document crossgrade between architectures not supported on the same CPU
 - [ ] Packaging crossgrade tool
+- [ ] Fixing all packages being marked as manually installed after crossgrade
 
 Completed
 ---
@@ -41,6 +34,15 @@ Completed
     - How to get architecture name outputted by `file` reliably?
         - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
         - Solution: get output of `file /bin/dpkg`
+
+#### Supporting Debian Jessie
+- [x] Rewrite code for Python 3.4 support
+    - Replace f-strings with `''.format()`
+    - Replace `text=True` with `universal_newlines=True`
+    - Replace `subprocess.run()` calls
+    - [x] Main crossgrade script
+    - [x] Util scripts
+
 Notes
 ---
 - Should we make sure the size of the new initramfs will not exceed the total amount of RAM available?
