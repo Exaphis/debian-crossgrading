@@ -741,13 +741,16 @@ def second_stage(args):
         # crossgrade qemu-user-static first to prevent list_second_stage_targets
         # from finding it
         if os.path.isdir(crossgrader.qemu_deb_path):
+            print('qemu-user-static must be crossgraded.')
             if not args.dry_run:
-                print('Crossgrading saved qemu-user-static...')
-                crossgrader.install_packages(
-                    glob(os.path.join(crossgrader.qemu_deb_path, '*.deb'))
-                )
-                os.rmdir(crossgrader.qemu_deb_path)
-                print('qemu-user-static successfully crossgraded.')
+                cont = input('Do you want to continue [y/N]? ').lower()
+                if cont == 'y':
+                    print('Crossgrading saved qemu-user-static...')
+                    crossgrader.install_packages(
+                        glob(os.path.join(crossgrader.qemu_deb_path, '*.deb'))
+                    )
+                    os.rmdir(crossgrader.qemu_deb_path)
+                    print('qemu-user-static successfully crossgraded.')
             else:
                 print('qemu-user-static crossgrade skipped.')
 
