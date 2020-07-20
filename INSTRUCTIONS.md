@@ -118,6 +118,14 @@ Converting an arm64 system to amd64
 # reboot
 ```
 
+After booting the install with an amd64 system, fix any internet connectivity issues before continuing.
+
+In my case, I had to change the primary network interface to ens3.
+
+If needed, running --second-stage will crossgrade qemu-user-static and its dependencies so the system can run arm64 binaries.
+
+Before qemu-user-static is crossgraded, sudo might take a long time to execute. Logging in as root to perform the crossgrade will work around the issue.
+
 ```
 # cd debian-crossgrading
 # python3 crossgrade/crossgrade.py amd64 --second-stage
