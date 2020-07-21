@@ -80,9 +80,8 @@ class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
     Attributes:
-        script_dir: Path to directory containing current script
-        initramfs_functions_path: Path to the initramfs hook-functions file.
         initramfs_functions_backup_path: Path to the backup of hook-functions.
+        arch_check_hook_path: Path to the arch-check-hook.sh shell script.
         qemu_deb_path: Path to a directory containing temporary cached qemu debs.
 
         target_arch: A string representing the target architecture of dpkg.
@@ -93,18 +92,21 @@ class Crossgrader:
 
     APT_CACHE_DIR = '/var/cache/apt/archives'
     DPKG_INFO_DIR = '/var/lib/dpkg/info'
-    QEMU_DEB_DIR = 'qemu-debs'
+    INITRAMFS_FUNCTIONS_PATH = '/usr/share/initramfs-tools/hook-functions'
+
+    ARCH_CHECK_HOOK_NAME = 'arch-check-hook.sh'
+    INITRAMFS_FUNCTIONS_BACKUP_NAME = 'hook-functions.bak'
+    QEMU_DEB_DIR_NAME = 'qemu-debs'
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
     # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
     # during first stage
     # if it exists, its debs will be installed before second stage
-    qemu_deb_path = os.path.join(script_dir, QEMU_DEB_DIR)
-    arch_check_hook_path = os.path.join(os.path.dirname(script_dir),
-                                        'arch-check-hook.sh')
-    initramfs_functions_path = '/usr/share/initramfs-tools/hook-functions'
-    initramfs_functions_backup_path = os.path.join(script_dir, 'hook-functions.bak')
+    qemu_deb_path = os.path.join(script_dir, QEMU_DEB_DIR_NAME)
+
+    arch_check_hook_path = os.path.join(os.path.dirname(script_dir), ARCH_CHECK_HOOK_NAME)
+    initramfs_functions_backup_path = os.path.join(script_dir, INITRAMFS_FUNCTIONS_BACKUP_NAME)
 
     def __init__(self, target_architecture):
         """Inits Crossgrader with the given target architecture.
@@ -113,6 +115,7 @@ class Crossgrader:
             InvalidArchitectureError: The given target_architecture is not recognized
                 by dpkg.
         """
+
         # set LC_ALL=C so we can rely on command output being English
         os.environ['LC_ALL'] = 'C'
 
@@ -198,11 +201,11 @@ class Crossgrader:
             True if the hook was successfully installed, False otherwise.
         """
 
-        if not os.path.isfile(self.initramfs_functions_path):
+        if not os.path.isfile(self.INITRAMFS_FUNCTIONS_PATH):
             print('hook-functions file does not exist.')
             return False
 
-        with open(self.initramfs_functions_path, 'r') as functions_file:
+        with open(self.INITRAMFS_FUNCTIONS_PATH, 'r') as functions_file:
             functions_lines = functions_file.read().splitlines()
 
         # is there a better way than using a magic string?
@@ -210,7 +213,7 @@ class Crossgrader:
             print('arch check hook already installed.')
             return False
 
-        shutil.copy2(self.initramfs_functions_path, self.initramfs_functions_backup_path)
+        shutil.copy2(self.INITRAMFS_FUNCTIONS_PATH, self.initramfs_functions_backup_path)
         assert os.path.isfile(self.initramfs_functions_backup_path)
 
         with open(self.arch_check_hook_path, 'r') as arch_hook_file:
@@ -226,7 +229,7 @@ class Crossgrader:
 
         functions_lines = functions_lines[:hook_index] + arch_hook_lines + \
                           functions_lines[hook_index + 1:]
-        with open(self.initramfs_functions_path, 'w') as functions_file:
+        with open(self.INITRAMFS_FUNCTIONS_PATH, 'w') as functions_file:
             functions_file.write('\n'.join(functions_lines))
 
         return True
@@ -245,11 +248,11 @@ class Crossgrader:
         if not os.path.isfile(self.initramfs_functions_backup_path):
             print('Backup file does not exist.')
             return False
-        if not os.path.isfile(self.initramfs_functions_path):
+        if not os.path.isfile(self.INITRAMFS_FUNCTIONS_PATH):
             print('hook-functions file does not exist.')
             return False
 
-        shutil.copy2(self.initramfs_functions_backup_path, self.initramfs_functions_path)
+        shutil.copy2(self.initramfs_functions_backup_path, self.INITRAMFS_FUNCTIONS_PATH)
         os.remove(self.initramfs_functions_backup_path)
         return True
 
@@ -620,8 +623,8 @@ class Crossgrader:
             package = self._apt_cache[name]
 
             if not package.is_installed:
-                print(('WARNING: {}, containing an initramfs hook, '.format(package),
-                       'is marked as not fully installed.'))
+                print(('WARNING: {}, containing an initramfs hook, '
+                       'is marked as not fully installed.').format(package))
                 print('Assuming it is installed.')
                 architecture = package.candidate.architecture
             else:
