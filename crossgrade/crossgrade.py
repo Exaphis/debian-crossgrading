@@ -80,10 +80,6 @@ class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
     Attributes:
-        initramfs_functions_backup_path: Path to the backup of hook-functions.
-        arch_check_hook_path: Path to the arch-check-hook.sh shell script.
-        qemu_deb_path: Path to a directory containing temporary cached qemu debs.
-
         target_arch: A string representing the target architecture of dpkg.
         current_arch: A string representing the current architecture of dpkg.
         non_supported_arch: A boolean indicating whether the target arch is natively supported
@@ -99,6 +95,10 @@ class Crossgrader:
     QEMU_DEB_DIR_NAME = 'qemu-debs'
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # initramfs_functions_backup_path: Path to the backup of hook-functions.
+    # arch_check_hook_path: Path to the arch-check-hook.sh shell script.
+    # qemu_deb_path: Path to a directory containing temporary cached qemu debs.
 
     # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
     # during first stage
@@ -411,6 +411,10 @@ class Crossgrader:
         """
         if debs_to_install is None:
             debs_to_install = glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb'))
+
+        # find map of .deb to original package
+        # apt-mark shows packags in native architecture without colon and others with
+        # if package does not exist in the native architecture, default to manually installed
 
         # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
         # easier to install/reconfigure repeatedly until errors resolve themselves
