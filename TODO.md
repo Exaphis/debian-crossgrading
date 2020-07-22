@@ -1,7 +1,11 @@
+Incomplete
+---
 #### Miscellaneous
 - [x] Document crossgrade between architectures not supported on the same CPU
+    - Still can be improved
 - [ ] Packaging crossgrade tool
-- [ ] Fixing all packages being marked as manually installed after crossgrade
+- [x] Fixing all packages being marked as manually installed after crossgrade
+    - [ ] Testing...
 
 Completed
 ---
