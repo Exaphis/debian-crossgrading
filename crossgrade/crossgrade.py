@@ -79,11 +79,17 @@ class PackageNotFoundError(CrossgradingError):
 class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
-    Attributes:
+    Instance attributes:
         target_arch: A string representing the target architecture of dpkg.
         current_arch: A string representing the current architecture of dpkg.
         non_supported_arch: A boolean indicating whether the target arch is natively supported
             by the current CPU.
+
+    Class attributes:
+        initramfs_functions_backup_path: Path to the backup of hook-functions.
+        arch_check_hook_path: Path to the arch-check-hook.sh shell script.
+        qemu_deb_path: Path to a directory containing temporary cached qemu debs.
+
     """
 
     APT_CACHE_DIR = '/var/cache/apt/archives'
@@ -95,16 +101,10 @@ class Crossgrader:
     QEMU_DEB_DIR_NAME = 'qemu-debs'
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
-
-    # initramfs_functions_backup_path: Path to the backup of hook-functions.
-    # arch_check_hook_path: Path to the arch-check-hook.sh shell script.
-    # qemu_deb_path: Path to a directory containing temporary cached qemu debs.
-
     # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
     # during first stage
     # if it exists, its debs will be installed before second stage
     qemu_deb_path = os.path.join(script_dir, QEMU_DEB_DIR_NAME)
-
     arch_check_hook_path = os.path.join(os.path.dirname(script_dir), ARCH_CHECK_HOOK_NAME)
     initramfs_functions_backup_path = os.path.join(script_dir, INITRAMFS_FUNCTIONS_BACKUP_NAME)
 
@@ -269,6 +269,9 @@ class Crossgrader:
             True if all errors were fixed, False otherwise.
         """
 
+        if not packages:
+            return True
+
         print('Running apt-get --fix-broken install...')
         # let user select yes/no
         ret_code = subprocess.call(['apt-get', 'install', '-f'])
@@ -395,27 +398,21 @@ class Crossgrader:
         return list(failed_debs), list(failed_packages)
 
     @staticmethod
-    def install_packages(debs_to_install=None):
-        """Installs specified .deb files.
-
-        Installs the .deb files specified in packages_to_install
-        using a looping dpkg -i *.deb / dpkg --configure -a.
+    def _install_configure_loop(debs_to_install):
+        """
+        Repeatedly runs _install_and_configure until all .debs are installed or
+        failures stop decreasing.
 
         Args:
-            packages_to_install: A list of paths to .deb files. If it is None,
-                all .debs in APT's cache will be installed.
+            debs_to_install: A list of paths to .deb files.
+
+        Returns:
+            A list of packages that were not successfully installed.
 
         Raises:
             PackageInstallationError: Some of the packages were not successfully
                 installed/configured.
         """
-        if debs_to_install is None:
-            debs_to_install = glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb'))
-
-        # find map of .deb to original package
-        # apt-mark shows packags in native architecture without colon and others with
-        # if package does not exist in the native architecture, default to manually installed
-
         # unfeasible to perform a topological sort (complex/circular dependencies, etc.)
         # easier to install/reconfigure repeatedly until errors resolve themselves
 
@@ -448,8 +445,7 @@ class Crossgrader:
 
             if len(failed_debs) == len(debs_remaining):
                 print('Number of failed installs did not decrease, halting...')
-                debs_remaining = failed_debs
-                break
+                raise PackageInstallationError(failed_debs)
 
             debs_remaining = failed_debs
 
@@ -458,12 +454,75 @@ class Crossgrader:
                 for deb in debs_remaining:
                     print('\t{}'.format(deb))
 
-        if debs_remaining:
-            raise PackageInstallationError(debs_remaining)
+        return failed_packages
 
-        if failed_packages:
-            if not Crossgrader._fix_dpkg_errors(failed_packages):
-                print('Some dpkg errors could not be fixed automatically.')
+    @staticmethod
+    def install_packages(debs_to_install=None):
+        """Installs specified .deb files.
+
+        Installs the .deb files specified in packages_to_install
+        using a looping dpkg -i *.deb / dpkg --configure -a.
+
+        Args:
+            debs_to_install: A list of paths to .deb files. If it is None,
+                all .debs in APT's cache will be installed.
+
+        Raises:
+            PackageInstallationError: Some of the packages were not successfully
+                installed/configured.
+        """
+        if debs_to_install is None:
+            debs_to_install = glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb'))
+
+        # find all packages marked as autoinstalled, and match them to the newly installed ones
+        # apt-mark shows packages in native architecture without colon and others with
+        proc = subprocess.Popen(['apt-mark', 'showauto'], stdout=subprocess.PIPE,
+                                universal_newlines=True)
+        auto_pkgs_list, __ = proc.communicate()
+
+        ret_code = proc.returncode
+        assert ret_code == 0, 'apt-mark showauto failed with code {}'.format(ret_code)
+
+        # to handle packages installed in non-native architectures
+        # (e.g. all native packages during second stage), strip all architectures from the
+        # packages returned by apt-mark
+        # therefore, if any existing package with the same name is auto-installed,
+        # then the newly installed one will be auto-installed as well
+        auto_pkgs = set()
+        for pkg in auto_pkgs_list:
+            try:
+                auto_pkgs.add(pkg[:pkg.index(':')])
+            except ValueError:
+                auto_pkgs.add(pkg)
+
+        # must find such packages before they are installed because dpkg -i will re-mark
+        # them as manually installed
+        mark_auto_pkgs = []
+        for deb in debs_to_install:
+            proc = subprocess.Popen(
+                ['dpkg-deb', '--showformat=${Package}:${Architecture}', '-W', deb],
+                stdout=subprocess.PIPE
+            )
+            pkg_full_name, __ = proc.communicate()
+
+            ret_code = proc.returncode
+            assert ret_code == 0, 'dpkg-deb failed with code {}'.format(ret_code)
+
+            pkg_short_name = pkg_full_name[:pkg_full_name.index(':')]
+            if pkg_short_name in auto_pkgs:
+                mark_auto_pkgs.append(pkg_full_name)
+
+        failed_packages = Crossgrader._install_configure_loop(debs_to_install)
+
+        if not Crossgrader._fix_dpkg_errors(failed_packages):
+            print('Some dpkg errors could not be fixed automatically.')
+
+        for pkg_full_name in mark_auto_pkgs:
+            # is it possible for apt-mark to fail here because the pkg was not installed at all?
+            ret_code = subprocess.call(['apt-mark', 'markauto', pkg_full_name],
+                                       stdout=subprocess.DEVNULL)
+            if ret_code != 0:
+                print('{} could not be marked as autoinstalled.'.format(pkg_full_name))
 
     def cache_package_debs(self, targets, target_dir=None):
         """Cache specified packages.
