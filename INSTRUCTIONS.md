@@ -1,3 +1,6 @@
+Notes before crossgrading
+---
+
 #### Backup the system
 
 Crossgrading a Debian install is currently experimental and prone to breakages. Please, please, **please** back up your data before continuing!
@@ -11,6 +14,12 @@ Packages saved.
 ```
 
 After crossgrading, run `python3 crossgrade/util/package_check/package_check.py` to verify that all packages were actually crossgraded.
+
+#### Crossgrading over SSH
+
+Crossgrading over SSH is possible, but not advised as internet connectivity might drop during the first stage of the crossgrading process.
+
+If you are going to do it, use a terminal multiplexer such as `tmux` or `screen` so the crossgrading tool can continue to run even if the network connection drops.
 
 Converting an i386 system to amd64
 ---
