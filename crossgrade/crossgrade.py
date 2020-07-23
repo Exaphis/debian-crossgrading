@@ -388,7 +388,8 @@ class Crossgrader:
 
         print('Running dpkg --configure -a...')
         proc = subprocess.Popen(['dpkg', '--configure', '-a', error_count_option],
-                                stdout=sys.stdout, stderr=subprocess.PIPE)
+                                stdout=sys.stdout, stderr=subprocess.PIPE,
+                                universal_newlines=True)
         __, __, errs = cmd_utils.tee_process(proc)
 
         new_failed_debs, new_failed_packages = get_dpkg_failures(errs.splitlines())
@@ -501,7 +502,7 @@ class Crossgrader:
         for deb in debs_to_install:
             proc = subprocess.Popen(
                 ['dpkg-deb', '--showformat=${Package}:${Architecture}', '-W', deb],
-                stdout=subprocess.PIPE
+                stdout=subprocess.PIPE, universal_newlines=True
             )
             pkg_full_name, __ = proc.communicate()
 
