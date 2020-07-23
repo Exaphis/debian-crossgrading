@@ -458,7 +458,7 @@ class Crossgrader:
         return failed_packages
 
     @staticmethod
-    def install_packages(debs_to_install=None):
+    def install_packages(debs_to_install=None, fix_broken=True):
         """Installs specified .deb files.
 
         Installs the .deb files specified in packages_to_install
@@ -467,6 +467,7 @@ class Crossgrader:
         Args:
             debs_to_install: A list of paths to .deb files. If it is None,
                 all .debs in APT's cache will be installed.
+            fix_broken: If true, try to fix any dpkg errors after installation.
 
         Raises:
             PackageInstallationError: Some of the packages were not successfully
@@ -477,6 +478,7 @@ class Crossgrader:
 
         # find all packages marked as autoinstalled, and match them to the newly installed ones
         # apt-mark shows packages in native architecture without colon and others with
+        print('Parsing automatically installed packages...')
         proc = subprocess.Popen(['apt-mark', 'showauto'], stdout=subprocess.PIPE,
                                 universal_newlines=True)
         auto_pkgs_list, __ = proc.communicate()
@@ -512,18 +514,21 @@ class Crossgrader:
             pkg_short_name = pkg_full_name[:pkg_full_name.index(':')]
             if pkg_short_name in auto_pkgs:
                 mark_auto_pkgs.append(pkg_full_name)
+        print('...done')
 
         failed_packages = Crossgrader._install_configure_loop(debs_to_install)
 
-        if not Crossgrader._fix_dpkg_errors(failed_packages):
+        if fix_broken and not Crossgrader._fix_dpkg_errors(failed_packages):
             print('Some dpkg errors could not be fixed automatically.')
 
+        print('Marking packages as auto-installed when needed...')
         for pkg_full_name in mark_auto_pkgs:
             # is it possible for apt-mark to fail here because the pkg was not installed at all?
             ret_code = subprocess.call(['apt-mark', 'markauto', pkg_full_name],
                                        stdout=subprocess.DEVNULL)
             if ret_code != 0:
                 print('{} could not be marked as autoinstalled.'.format(pkg_full_name))
+        print('...done')
 
     def cache_package_debs(self, targets, target_dir=None):
         """Cache specified packages.
@@ -794,6 +799,8 @@ def first_stage(args):
             crossgrader.cache_package_debs(targets)
 
             if not args.download_only:
+                # TODO: determine if fix_broken should be disabled for first stage
+                # crossgrader.install_packages(fix_broken=False)
                 crossgrader.install_packages()
         else:
             print('Aborted.')

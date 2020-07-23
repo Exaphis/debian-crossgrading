@@ -6,6 +6,7 @@ Incomplete
 - [ ] Packaging crossgrade tool
 - [x] Fixing all packages being marked as manually installed after crossgrade
     - [ ] Testing...
+- [ ] Check if arch-check-hook.sh actually works?
 
 Completed
 ---
