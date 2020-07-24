@@ -10,15 +10,18 @@
 # $2 - architecture to check file against
 check_file_arch () {
     local file_arch detect_status
-    file_arch=`elf-arch "${1}"`
-    detect_status="${?}"
+    detect_status=0
+    file_arch=`elf-arch "${1}"` || detect_status="${?}"
 
-    elf-arch -a "${2}" "${1}"
+    arch_match=0
+    elf-arch -a "${2}" "${1}" || arch_match="${?}"
+
+    # if arch-test is not runnable (e.g. exec format error), fail silently
 
     # detect_status being 0 means $1 contains a binary
     # must be used because elf-arch -a has exit code 1 for both file not being a binary
     # and file not being the right architecture
-    if [ ${detect_status} -eq 0 -a $? -ne 0 ]; then
+    if [ ${detect_status} -eq 0 -a ${arch_match} -ne 0 ]; then
         echo "WARNING: initramfs binary ${1} has non-target architecture ${file_arch}."
         echo "Ensure that it can be executed or crossgrade the package, then update the initramfs again."
     fi
