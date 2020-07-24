@@ -805,9 +805,9 @@ def first_stage(args):
             crossgrader.cache_package_debs(targets)
 
             if not args.download_only:
-                # TODO: determine if fix_broken should be disabled for first stage
-                # crossgrader.install_packages(fix_broken=False)
-                crossgrader.install_packages()
+                # fix_broken should be disabled for first stage so apt doesn't
+                # decide to uninstall some necessary packages
+                crossgrader.install_packages(fix_broken=False)
                 subprocess.call(['update-initramfs', '-u', '-k', 'all'])
         else:
             print('Aborted.')
