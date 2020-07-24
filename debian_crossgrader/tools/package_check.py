@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+import appdirs
+
 def save_package_list(output_file):
     """Saves your currently installed packages to the given file path."""
     print('Saving currently installed packages...')
@@ -65,9 +67,11 @@ def compare_package_list(input_file):
 def main():
     """Main function of the script"""
     out_file = 'packages.txt'
-    script_dir = os.path.dirname(os.path.realpath(__file__))
+    app_name = 'debian_crossgrader_package_check'
+    storage_dir = appdirs.site_data_dir(app_name)
+    os.makedirs(storage_dir, exist_ok=True)
 
-    file_name = os.path.join(script_dir, out_file)
+    file_name = os.path.join(storage_dir, out_file)
 
     if not os.path.isfile(file_name):
         save_package_list(file_name)
