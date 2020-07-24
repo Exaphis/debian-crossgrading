@@ -4,9 +4,10 @@ Incomplete
 - [x] Document crossgrade between architectures not supported on the same CPU
     - Still can be improved
 - [ ] Packaging crossgrade tool
+    - [ ] Python packaging
+    - [ ] Debian packaging
 - [x] Fixing all packages being marked as manually installed after crossgrade
     - [ ] Testing...
-- [ ] Check if arch-check-hook.sh actually works?
 
 Completed
 ---
