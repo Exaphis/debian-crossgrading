@@ -22,7 +22,7 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'crossgrader=debian_crossgrader.crossgrade:main',
-            'package-checker=debian_crosssgrader.crossgrade_utils.package_check:main'
+            'package-checker=debian_crossgrader.tools.package_check:main'
         ]
     }
 )

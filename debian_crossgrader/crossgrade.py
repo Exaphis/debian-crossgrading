@@ -22,7 +22,7 @@ import traceback
 
 import apt
 
-import cmd_utils
+from debian_crossgrader import cmd_utils
 
 
 class CrossgradingError(Exception):
@@ -802,6 +802,7 @@ def first_stage(args):
                 # TODO: determine if fix_broken should be disabled for first stage
                 # crossgrader.install_packages(fix_broken=False)
                 crossgrader.install_packages()
+                subprocess.call(['update-initramfs', '-u', '-k', 'all'])
         else:
             print('Aborted.')
 
