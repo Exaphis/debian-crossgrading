@@ -20,6 +20,7 @@ import subprocess
 import sys
 import traceback
 
+import appdirs
 import apt
 
 from debian_crossgrader import cmd_utils
@@ -100,13 +101,18 @@ class Crossgrader:
     INITRAMFS_FUNCTIONS_BACKUP_NAME = 'hook-functions.bak'
     QEMU_DEB_DIR_NAME = 'qemu-debs'
 
-    script_dir = os.path.dirname(os.path.realpath(__file__))
+    APP_NAME = 'debian_crossgrader'
+    storage_dir = appdirs.site_data_dir(APP_NAME)
+    os.makedirs(storage_dir, exist_ok=True)
+
     # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
     # during first stage
     # if it exists, its debs will be installed before second stage
-    qemu_deb_path = os.path.join(script_dir, QEMU_DEB_DIR_NAME)
-    arch_check_hook_path = os.path.join(os.path.dirname(script_dir), ARCH_CHECK_HOOK_NAME)
-    initramfs_functions_backup_path = os.path.join(script_dir, INITRAMFS_FUNCTIONS_BACKUP_NAME)
+    qemu_deb_path = os.path.join(storage_dir, QEMU_DEB_DIR_NAME)
+    initramfs_functions_backup_path = os.path.join(storage_dir, INITRAMFS_FUNCTIONS_BACKUP_NAME)
+
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    arch_check_hook_path = os.path.join(script_dir, ARCH_CHECK_HOOK_NAME)
 
     def __init__(self, target_architecture):
         """Inits Crossgrader with the given target architecture.

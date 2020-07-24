@@ -19,6 +19,10 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux'
     ],
     python_requires='>=3.4',
+    install_requires=[
+        'python-apt',
+        'appdirs'
+    ],
     entry_points={
         'console_scripts': [
             'crossgrader=debian_crossgrader.crossgrade:main',
