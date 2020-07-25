@@ -488,6 +488,7 @@ class Crossgrader:
         proc = subprocess.Popen(['apt-mark', 'showauto'], stdout=subprocess.PIPE,
                                 universal_newlines=True)
         auto_pkgs_list, __ = proc.communicate()
+        auto_pkgs_list = auto_pkgs_list.splitlines()
 
         ret_code = proc.returncode
         assert ret_code == 0, 'apt-mark showauto failed with code {}'.format(ret_code)
