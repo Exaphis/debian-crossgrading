@@ -142,9 +142,9 @@ class Crossgrader:
                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if arch_test_ret != 0:
             if arch_test_ret == 2:
+                # no need to throw an error here, qemu-user-static should be able to handle it
                 print(('arch-test lacks a helper for {}; assuming not supported on this machine '
                        'but runnable with emulation.').format(self.target_arch))
-                # TODO: more caution? ask for flag?
             elif arch_test_ret == 1:
                 # ensure target arch can be run with emulation for foreign package setup
                 support_with_emu = subprocess.call(['arch-test', self.target_arch],
