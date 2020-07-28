@@ -1,5 +1,5 @@
 debian-crossgrader (0.0.1-1) unstable; urgency=low
 
-  * source package automatically created by stdeb 0.8.5
+  * Initial release.
 
  -- Kevin Wu <kevin@kevinniuwu.com>  Mon, 27 Jul 2020 19:58:10 -0700

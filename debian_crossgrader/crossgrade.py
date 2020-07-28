@@ -313,6 +313,10 @@ class Crossgrader:
 
                 print('dpkg failed to remove {}.'.format(coinstalled_package))
 
+                # this triggers lintian: uses-dpkg-database-directly,
+                # but is necessary to handle crossgrading 
+                # packages like python3-pil and python3-cairo
+                # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=810551
                 prerm_script = '{}.prerm'.format(coinstalled_package)
                 prerm_script = os.path.join(Crossgrader.DPKG_INFO_DIR, prerm_script)
 
