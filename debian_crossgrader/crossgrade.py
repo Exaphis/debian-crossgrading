@@ -280,7 +280,7 @@ class Crossgrader:
 
         print('Running apt-get --fix-broken install...')
         # let user select yes/no
-        ret_code = subprocess.call(['apt-get', 'install', '-f'])
+        ret_code = subprocess.call(['apt-get', 'install', '-f', '-y'])
         if ret_code == 0:
             return True
 
@@ -532,13 +532,9 @@ class Crossgrader:
         if fix_broken and not Crossgrader._fix_dpkg_errors(failed_packages):
             print('Some dpkg errors could not be fixed automatically.')
 
-        print('Marking packages as auto-installed when needed...')
-        for pkg_full_name in mark_auto_pkgs:
-            # is it possible for apt-mark to fail here because the pkg was not installed at all?
-            ret_code = subprocess.call(['apt-mark', 'markauto', pkg_full_name],
-                                       stdout=subprocess.DEVNULL)
-            if ret_code != 0:
-                print('{} could not be marked as autoinstalled.'.format(pkg_full_name))
+        print('Re-marking packages as auto-installed...')
+        ret_code = subprocess.call(['apt-mark', 'auto', *mark_auto_pkgs],
+                                   stdout=subprocess.DEVNULL)
         print('...done')
 
     def cache_package_debs(self, targets, target_dir=None):

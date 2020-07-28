@@ -52,7 +52,7 @@ Linux buster-i386-amd64 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2+deb10u1 (2020-06
 
 #### First stage -- initramfs, required, important
 
-At this point, switch to a text mode console.
+At this point, __switch to a text mode console__.
 
 Crossgrade all Priority: required and Priority: important packages, as well as any packages containing initramfs hook scripts. This makes sure our core packages can be switched over to the target architecture.
 
