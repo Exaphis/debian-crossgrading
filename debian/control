@@ -1,0 +1,28 @@
+Source: debian-crossgrader
+Maintainer: Kevin Wu <kevin@kevinniuwu.com>
+Section: python
+Priority: optional
+Build-Depends: dh-python, python3-setuptools, python3-all, debhelper (>= 9)
+Standards-Version: 3.9.6
+Homepage: https://salsa.debian.org/crossgrading-team/debian-crossgrading
+X-Python3-Version: >= 3.4
+
+Package: python3-debian-crossgrader
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Debian crossgrading tool
+ # debian-crossgrading
+ .
+ This repo contains my work and research for my Google Summer of Code 2020 project, Architecture Cross-Grading Support in Debian.
+ .
+ The official project can be found at https://summerofcode.withgoogle.com/projects/#6528590289567744.
+ .
+ ## Usage
+ .
+ Refer to [INSTRUCTIONS.md](INSTRUCTIONS.md)
+ .
+ ## Progress
+ .
+ Refer to [TODO.md](TODO.md)
+ .
+ Placeholder

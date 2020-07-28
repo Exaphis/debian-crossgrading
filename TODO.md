@@ -1,13 +1,11 @@
 Incomplete
 ---
 #### Miscellaneous
-- [x] Document crossgrade between architectures not supported on the same CPU
-    - Still can be improved
 - [x] Packaging crossgrade tool
     - [x] Python packaging
     - [ ] Debian packaging
-- [x] Fixing all packages being marked as manually installed after crossgrade
-    - [ ] Testing...
+- [ ] Testing in Debian Jessie
+- [ ] Testing with different init system
 
 Completed
 ---
@@ -40,6 +38,10 @@ Completed
     - How to get architecture name outputted by `file` reliably?
         - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
         - Solution: get output of `file /bin/dpkg`
+- [x] Document crossgrade between architectures not supported on the same CPU
+    - Still can be improved
+- [x] Fixing all packages being marked as manually installed after crossgrade
+    - [x] Testing...
 
 #### Supporting Debian Jessie
 - [x] Rewrite code for Python 3.4 support
