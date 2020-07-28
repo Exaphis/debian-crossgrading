@@ -1,11 +1,9 @@
 Incomplete
 ---
 #### Miscellaneous
-- [x] Packaging crossgrade tool
-    - [x] Python packaging
-    - [ ] Debian packaging
 - [ ] Testing in Debian Jessie
 - [ ] Testing with different init system
+- [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
 
 Completed
 ---
@@ -42,6 +40,9 @@ Completed
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
     - [x] Testing...
+- [x] Packaging crossgrade tool
+    - [x] Python packaging
+    - [x] Debian packaging
 
 #### Supporting Debian Jessie
 - [x] Rewrite code for Python 3.4 support
