@@ -6,7 +6,7 @@ Build-Depends: dh-python, python3-setuptools, python3-all, debhelper (>= 9)
 Standards-Version: 4.3.0
 Homepage: https://salsa.debian.org/crossgrading-team/debian-crossgrading
 
-Package: python3-debian-crossgrader
+Package: crossgrader
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, dpkg-dev, arch-test
 Description: Debian crossgrading tool
