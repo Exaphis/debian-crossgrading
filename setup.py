@@ -15,14 +15,17 @@ setuptools.setup(
     url='https://salsa.debian.org/crossgrading-team/debian-crossgrading',
     packages=setuptools.find_packages(),
     include_package_data=True,
+    license='GPL-2+',
+    platforms=['Debian'],
     classifiers=[
         'Programming Language :: Python :: 3',
-        'Operating System :: POSIX :: Linux'
+        'Operating System :: POSIX :: Linux',
+        'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)'
     ],
     python_requires='>=3.4',
     install_requires=[
-        'python-apt',
-        'appdirs'
+        'appdirs',
+        'python-apt'
     ],
     entry_points={
         'console_scripts': [

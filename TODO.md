@@ -5,6 +5,9 @@ Incomplete
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
 
+#### Packaging
+- [ ] Close ITP bug (waiting for ID)
+
 Completed
 ---
 #### arm64 -> amd64 crossgrade
@@ -40,9 +43,12 @@ Completed
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
     - [x] Testing...
+
+#### Packaging
 - [x] Packaging crossgrade tool
     - [x] Python packaging
     - [x] Debian packaging
+- [x] Add qemu-user-static to depends
 
 #### Supporting Debian Jessie
 - [x] Rewrite code for Python 3.4 support
