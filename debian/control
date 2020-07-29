@@ -8,7 +8,7 @@ Homepage: https://salsa.debian.org/crossgrading-team/debian-crossgrading
 
 Package: crossgrader
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, dpkg-dev, arch-test
+Depends: ${misc:Depends}, ${python3:Depends}, python3-pkg-resources, dpkg-dev, arch-test
 Suggests: qemu-user-static
 Description: Debian crossgrading tool
  This package provides a tool to crossgrade

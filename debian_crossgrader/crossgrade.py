@@ -920,6 +920,11 @@ def install_from(args):
             print('Aborted.')
 
 
+def cleanup():
+    """Cleans up any extra files, namely Crossgrader's storage_dir"""
+    os.removedirs(Crossgrader.storage_dir)
+
+
 def main():
     """Crossgrade driver, executed only if run as script"""
     parser = argparse.ArgumentParser()
@@ -959,13 +964,19 @@ def main():
     parser.add_argument('--dry-run',
                         help='Run the crossgrader, but do not change anything',
                         action='store_true')
+    parser.add_argument('--cleanup',
+                        help=('Clean up any extra files stored by the crossgrader. '
+                              'The given architecture will be ignored.'),
+                        action='store_true')
     args = parser.parse_args()
 
     if args.force_all:
         args.force_initramfs = True
         args.force_unavailable = True
 
-    if args.install_from:
+    if args.cleanup:
+        cleanup()
+    elif args.install_from:
         install_from(args)
     elif args.second_stage:
         second_stage(args)

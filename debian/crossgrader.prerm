@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -x
+crossgrader placeholder --cleanup
+
+#DEBHELPER#
