@@ -180,6 +180,8 @@ class Crossgrader:
             traceback.print_exc()
             print('Ignoring...')
 
+        self.qemu_installed = self._apt_cache['qemu-user-static'].is_installed
+
     def __enter__(self):
         """Enter the with statement"""
         return self
@@ -314,7 +316,7 @@ class Crossgrader:
                 print('dpkg failed to remove {}.'.format(coinstalled_package))
 
                 # this triggers lintian: uses-dpkg-database-directly,
-                # but is necessary to handle crossgrading 
+                # but is necessary to handle crossgrading
                 # packages like python3-pil and python3-cairo
                 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=810551
                 prerm_script = '{}.prerm'.format(coinstalled_package)
@@ -794,8 +796,12 @@ def first_stage(args):
         if cont == 'y':
             # cache qemu debs first because internet access might go down
             # after crossgrade
+            # crossgrade qemu just if qemu-user-static exists for any arch
+            # pairs that can be run on the current arch but the current can't
+            # be run on the foreign arch (e.g. amd64->i386? who would do that?)
             qemu_path_exists = os.path.isdir(crossgrader.qemu_deb_path)
-            if crossgrader.non_supported_arch and not qemu_path_exists:
+            crossgrade_qemu = crossgrader.qemu_installed or crossgrader.non_supported_arch
+            if crossgrade_qemu and not qemu_path_exists:
                 print('Saving qemu-user-static debs for second stage...')
                 qemu_pkgs = crossgrader.find_packages_from_names(
                     ['qemu-user-static', 'binfmt-support']
@@ -829,7 +835,8 @@ def second_stage(args):
                 if cont == 'y':
                     print('Crossgrading saved qemu-user-static...')
                     crossgrader.install_packages(
-                        glob(os.path.join(crossgrader.qemu_deb_path, '*.deb'))
+                        glob(os.path.join(crossgrader.qemu_deb_path, '*.deb')),
+                        fix_broken=False
                     )
                     os.rmdir(crossgrader.qemu_deb_path)
                     print('qemu-user-static successfully crossgraded.')
