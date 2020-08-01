@@ -13,6 +13,7 @@ build_sdist:
 	python3 setup.py sdist
 
 debuild: build_sdist
+	rm -rf debuild/*
 	mkdir debuild/debian-crossgrader-source
 	tar -xf $(wildcard dist/*.tar.gz) -C debuild/debian-crossgrader-source --strip-components 1
 	cp $(wildcard dist/*.tar.gz) debuild/$(deb_src_name)_$(upstream_version).orig.tar.gz
