@@ -138,4 +138,5 @@ dmypy.json
 cython_debug/
 
 *.swp
-debuild/*
+debuild/debian-crossgrader-source
+debuild/*.orig.tar.gz

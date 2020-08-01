@@ -1,0 +1,129 @@
+ dpkg-buildpackage -us -uc -ui
+dpkg-buildpackage: info: source package debian-crossgrader
+dpkg-buildpackage: info: source version 0.0.1-1
+dpkg-buildpackage: info: source distribution unstable
+dpkg-buildpackage: info: source changed by Kevin Wu <kevin@kevinniuwu.com>
+ dpkg-source --before-build .
+dpkg-buildpackage: info: host architecture amd64
+ fakeroot debian/rules clean
+dh clean --with python3 --buildsystem=pybuild
+   dh_auto_clean -O--buildsystem=pybuild
+I: pybuild base:217: python3.7 setup.py clean 
+running clean
+removing '/home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build' (and everything under it)
+'build/bdist.linux-amd64' does not exist -- can't clean it
+'build/scripts-3.7' does not exist -- can't clean it
+   dh_clean -O--buildsystem=pybuild
+ dpkg-source -b .
+dpkg-source: info: using source format '3.0 (quilt)'
+dpkg-source: info: building debian-crossgrader using existing ./debian-crossgrader_0.0.1.orig.tar.gz
+dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.1-1.debian.tar.xz
+dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.1-1.dsc
+ debian/rules build
+dh build --with python3 --buildsystem=pybuild
+   dh_update_autotools_config -O--buildsystem=pybuild
+   dh_auto_configure -O--buildsystem=pybuild
+I: pybuild base:217: python3.7 setup.py config 
+running config
+   dh_auto_build -O--buildsystem=pybuild
+I: pybuild base:217: /usr/bin/python3 setup.py build 
+running build
+running build_py
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader
+copying debian_crossgrader/__init__.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader
+copying debian_crossgrader/cmd_utils.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader
+copying debian_crossgrader/crossgrade.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools
+copying debian_crossgrader/tools/__init__.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools
+copying debian_crossgrader/tools/package_check.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools
+copying debian_crossgrader/tools/random_install.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools
+running egg_info
+writing debian_crossgrader.egg-info/PKG-INFO
+writing dependency_links to debian_crossgrader.egg-info/dependency_links.txt
+writing entry points to debian_crossgrader.egg-info/entry_points.txt
+writing requirements to debian_crossgrader.egg-info/requires.txt
+writing top-level names to debian_crossgrader.egg-info/top_level.txt
+reading manifest file 'debian_crossgrader.egg-info/SOURCES.txt'
+reading manifest template 'MANIFEST.in'
+writing manifest file 'debian_crossgrader.egg-info/SOURCES.txt'
+copying debian_crossgrader/arch-check-hook.sh -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader
+   dh_auto_test -O--buildsystem=pybuild
+I: pybuild base:217: cd /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build; python3.7 -m unittest discover -v 
+
+----------------------------------------------------------------------
+Ran 0 tests in 0.000s
+
+OK
+ fakeroot debian/rules binary
+dh binary --with python3 --buildsystem=pybuild
+   dh_testroot -O--buildsystem=pybuild
+   dh_prep -O--buildsystem=pybuild
+   dh_auto_install -O--buildsystem=pybuild
+I: pybuild base:217: /usr/bin/python3 setup.py install --root /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader 
+running install
+running build
+running build_py
+running egg_info
+writing debian_crossgrader.egg-info/PKG-INFO
+writing dependency_links to debian_crossgrader.egg-info/dependency_links.txt
+writing entry points to debian_crossgrader.egg-info/entry_points.txt
+writing requirements to debian_crossgrader.egg-info/requires.txt
+writing top-level names to debian_crossgrader.egg-info/top_level.txt
+reading manifest file 'debian_crossgrader.egg-info/SOURCES.txt'
+reading manifest template 'MANIFEST.in'
+writing manifest file 'debian_crossgrader.egg-info/SOURCES.txt'
+running install_lib
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/__init__.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools/__init__.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools/package_check.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools/random_install.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools/__pycache__
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/tools/__pycache__/__init__.cpython-37.pyc -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools/__pycache__
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/cmd_utils.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader
+creating /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/__pycache__
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/__pycache__/__init__.cpython-37.pyc -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/__pycache__
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/arch-check-hook.sh -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader
+copying /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/.pybuild/cpython3_3.7_debian-crossgrader/build/debian_crossgrader/crossgrade.py -> /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/__init__.py to __init__.cpython-37.pyc
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools/__init__.py to __init__.cpython-37.pyc
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools/package_check.py to package_check.cpython-37.pyc
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/tools/random_install.py to random_install.cpython-37.pyc
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/cmd_utils.py to cmd_utils.cpython-37.pyc
+byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/crossgrade.py to crossgrade.cpython-37.pyc
+running install_egg_info
+Copying debian_crossgrader.egg-info to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader-0.0.1.egg-info
+Skipping SOURCES.txt
+running install_scripts
+Installing crossgrade-package-check script to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/bin
+Installing crossgrader script to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/bin
+   dh_installdocs -O--buildsystem=pybuild
+   dh_installchangelogs -O--buildsystem=pybuild
+   dh_python3 -O--buildsystem=pybuild
+   dh_installinit -O--buildsystem=pybuild
+   dh_perl -O--buildsystem=pybuild
+   dh_link -O--buildsystem=pybuild
+   dh_strip_nondeterminism -O--buildsystem=pybuild
+   dh_compress -O--buildsystem=pybuild
+   dh_fixperms -O--buildsystem=pybuild
+   dh_missing -O--buildsystem=pybuild
+   dh_installdeb -O--buildsystem=pybuild
+   dh_gencontrol -O--buildsystem=pybuild
+   dh_md5sums -O--buildsystem=pybuild
+   dh_builddeb -O--buildsystem=pybuild
+dpkg-deb: building package 'crossgrader' in '../crossgrader_0.0.1-1_all.deb'.
+ dpkg-genbuildinfo
+ dpkg-genchanges  >../debian-crossgrader_0.0.1-1_amd64.changes
+dpkg-genchanges: info: including full source code in upload
+ dpkg-source --after-build .
+dpkg-buildpackage: info: full upload (original source is included)
+Now running lintian debian-crossgrader_0.0.1-1_amd64.changes ...
+W: crossgrader: uses-dpkg-database-directly usr/lib/python3/dist-packages/debian_crossgrader/crossgrade.py
+W: crossgrader: binary-without-manpage usr/bin/crossgrade-package-check
+W: crossgrader: binary-without-manpage usr/bin/crossgrader
+Finished running lintian.
