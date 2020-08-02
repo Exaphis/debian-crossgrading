@@ -3,8 +3,9 @@ Incomplete
 #### Miscellaneous
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
-- [ ] Test i386 to amd64
+- [ ] Testing with non-64-bit target (i.e. amd64 to i386)
 - [ ] Testing on non-usrmerge systems
+- [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
 
 Completed
 ---
