@@ -36,9 +36,10 @@ Completed
 
 #### Miscellaneous
 - [x] Initramfs binary arch verification
-    - How to get architecture name outputted by `file` reliably?
-        - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
-        - Solution: get output of `file /bin/dpkg`
+    - ~~How to get architecture name outputted by `file` reliably?~~
+        - ~~E.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64~~
+        - ~~Solution: get output of `file /bin/dpkg`~~
+    - Use arch-test's elf-arch to get the architecture of copied binaries and check if it matches the target architecture
 - [x] Document crossgrade between architectures not supported on the same CPU
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
