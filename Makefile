@@ -6,14 +6,13 @@ upstream_version = $(shell tmp='$(deb_version)'; tmp="$${tmp\#\#*:}"; echo $${tm
 
 build_all: build_bdist build_sdist debuild
 
-build_bdist:
+build_bdist: clean
 	python3 setup.py bdist_wheel
 
-build_sdist:
+build_sdist: clean
 	python3 setup.py sdist
 
 debuild: build_sdist
-	rm -rf debuild/*
 	mkdir debuild/debian-crossgrader-source
 	tar -xf $(wildcard dist/*.tar.gz) -C debuild/debian-crossgrader-source --strip-components 1
 	cp $(wildcard dist/*.tar.gz) debuild/$(deb_src_name)_$(upstream_version).orig.tar.gz
