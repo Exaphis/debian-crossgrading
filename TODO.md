@@ -1,12 +1,10 @@
 Incomplete
 ---
 #### Miscellaneous
-- [ ] Testing in Debian Jessie
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
-
-#### Packaging
-- [ ] Close ITP bug (waiting for ID)
+- [ ] Test i386 to amd64
+- [ ] Testing on non-usrmerge systems
 
 Completed
 ---
@@ -50,6 +48,8 @@ Completed
     - [x] Python packaging
     - [x] Debian packaging
 - [x] Add qemu-user-static to depends
+- [x] Close ITP bug (966533)
+
 
 #### Supporting Debian Jessie
 - [x] Rewrite code for Python 3.4 support
