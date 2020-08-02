@@ -1,0 +1,35 @@
+Format: 1.8
+Date: Fri, 31 Jul 2020 19:23:39 -0700
+Source: debian-crossgrader
+Binary: crossgrader
+Architecture: source all
+Version: 0.0.2-1
+Distribution: UNRELEASED
+Urgency: medium
+Maintainer: Kevin Wu <kevin@kevinniuwu.com>
+Changed-By: Kevin Wu <kevin@kevinniuwu.com>
+Description:
+ crossgrader - Debian crossgrading tool
+Changes:
+ debian-crossgrader (0.0.2-1) UNRELEASED; urgency=medium
+ .
+   * Fix syntax errors in Python 3.4 (Jessie)
+   * Depend on python3-apt version 1.0.0
+Checksums-Sha1:
+ d0dcc9af1cfb7300433bcb55867b3f6c8fa3f4dc 968 debian-crossgrader_0.0.2-1.dsc
+ 748a2fd5ce2254dc7115ba1af327a5b766ad9604 20713 debian-crossgrader_0.0.2.orig.tar.gz
+ 167f872ebb24b454fc2a63655fdd7b71c2fc116a 1736 debian-crossgrader_0.0.2-1.debian.tar.xz
+ c701f5f3d30e93e60cb3f16288c95067f6f685a6 14760 crossgrader_0.0.2-1_all.deb
+ e88b3819e41f876f67f169e968f21f29dfc17dd0 5208 debian-crossgrader_0.0.2-1_amd64.buildinfo
+Checksums-Sha256:
+ 24fbd7f9b648b25a13d20e3b4e1632224a278c2b6bac779bcdb4f0fb6ee05cfc 968 debian-crossgrader_0.0.2-1.dsc
+ 6e208dbeb69deb1139412fed7a6974dc1f34448f55d6827c6e13045690f2b13e 20713 debian-crossgrader_0.0.2.orig.tar.gz
+ af7898d308e65776f2705b3528f393ad01b43bde6d2a35091eda235a474f736b 1736 debian-crossgrader_0.0.2-1.debian.tar.xz
+ 2e5270e94a4fb7cd4e657cd91806a2052cc50136d01940e16b40837a1f424c0a 14760 crossgrader_0.0.2-1_all.deb
+ 750cde9a5263f3e09f86d6bb67c49643e6aeb77d69b94484239b99ddb30f88e8 5208 debian-crossgrader_0.0.2-1_amd64.buildinfo
+Files:
+ 2899f67baa684974a513d5dcbd44287a 968 python optional debian-crossgrader_0.0.2-1.dsc
+ a0b0b11964ddce9d468cb0b6c42e456a 20713 python optional debian-crossgrader_0.0.2.orig.tar.gz
+ a0079278983b94f8d3200e3f7e64ff42 1736 python optional debian-crossgrader_0.0.2-1.debian.tar.xz
+ 01b2f91fb05a44be77e89467b449e1a3 14760 python optional crossgrader_0.0.2-1_all.deb
+ 1834d412c89d5b53aa3e3a73442c09cd 5208 python optional debian-crossgrader_0.0.2-1_amd64.buildinfo

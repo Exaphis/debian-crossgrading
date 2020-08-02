@@ -1,3 +1,10 @@
+debian-crossgrader (0.0.2-1) UNRELEASED; urgency=medium
+
+  * Fix syntax errors in Python 3.4 (Jessie)
+  * Depend on python3-apt version 1.0.0
+
+ -- Kevin Wu <kevin@kevinniuwu.com>  Fri, 31 Jul 2020 19:23:39 -0700
+
 debian-crossgrader (0.0.1-1) unstable; urgency=low
 
   * Initial release. (Closes: #966533)

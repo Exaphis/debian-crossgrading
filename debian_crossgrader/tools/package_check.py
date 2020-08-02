@@ -37,11 +37,12 @@ def compare_package_list(input_file):
     """Compares your installed packages to list in the given file."""
     assert os.path.isfile(input_file)
 
-    curr_arch = subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip()
+    curr_arch = subprocess.check_output(['dpkg', '--print-architecture'],
+                                        universal_newlines=True).strip()
 
     curr_packages = subprocess.check_output(['dpkg-query', '-f',
                                              '${Package}\t${Architecture}\t${Status}\n', '-W'],
-                                            text=True).splitlines()
+                                            universal_newlines=True).splitlines()
     curr_packages = package_list_to_dict(curr_packages)
 
     with open(input_file, 'r') as packages_file:
@@ -61,7 +62,8 @@ def compare_package_list(input_file):
             found = curr_packages[target_package] == 'install ok installed'
 
         if not found:
-            print(f'{target_package} is not installed in the target arch.', file=sys.stderr)
+            print('{} is not installed in the target arch.'.format(target_package),
+                  file=sys.stderr)
 
 
 def main():

@@ -6,7 +6,7 @@ def readme():
 
 setuptools.setup(
     name='debian_crossgrader',
-    version='0.0.1',
+    version='0.0.2',
     author='Kevin Wu',
     author_email='kevin@kevinniuwu.com',
     description='Debian crossgrading tool',
@@ -25,7 +25,7 @@ setuptools.setup(
     python_requires='>=3.4',
     install_requires=[
         'appdirs',
-        'python-apt'
+        'python-apt>=1.0.0'
     ],
     entry_points={
         'console_scripts': [

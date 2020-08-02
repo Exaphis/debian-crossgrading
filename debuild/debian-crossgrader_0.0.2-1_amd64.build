@@ -1,7 +1,7 @@
  dpkg-buildpackage -us -uc -ui
 dpkg-buildpackage: info: source package debian-crossgrader
-dpkg-buildpackage: info: source version 0.0.1-1
-dpkg-buildpackage: info: source distribution unstable
+dpkg-buildpackage: info: source version 0.0.2-1
+dpkg-buildpackage: info: source distribution UNRELEASED
 dpkg-buildpackage: info: source changed by Kevin Wu <kevin@kevinniuwu.com>
  dpkg-source --before-build .
 dpkg-buildpackage: info: host architecture amd64
@@ -16,9 +16,9 @@ removing '/home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-so
    dh_clean -O--buildsystem=pybuild
  dpkg-source -b .
 dpkg-source: info: using source format '3.0 (quilt)'
-dpkg-source: info: building debian-crossgrader using existing ./debian-crossgrader_0.0.1.orig.tar.gz
-dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.1-1.debian.tar.xz
-dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.1-1.dsc
+dpkg-source: info: building debian-crossgrader using existing ./debian-crossgrader_0.0.2.orig.tar.gz
+dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.2-1.debian.tar.xz
+dpkg-source: info: building debian-crossgrader in debian-crossgrader_0.0.2-1.dsc
  debian/rules build
 dh build --with python3 --buildsystem=pybuild
    dh_update_autotools_config -O--buildsystem=pybuild
@@ -97,7 +97,7 @@ byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrad
 byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/cmd_utils.py to cmd_utils.cpython-37.pyc
 byte-compiling /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader/crossgrade.py to crossgrade.cpython-37.pyc
 running install_egg_info
-Copying debian_crossgrader.egg-info to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader-0.0.1.egg-info
+Copying debian_crossgrader.egg-info to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/lib/python3.7/dist-packages/debian_crossgrader-0.0.2.egg-info
 Skipping SOURCES.txt
 running install_scripts
 Installing crossgrade-package-check script to /home/kevin/gsoc-2020/debian-crossgrader/debuild/debian-crossgrader-source/debian/crossgrader/usr/bin
@@ -116,13 +116,13 @@ Installing crossgrader script to /home/kevin/gsoc-2020/debian-crossgrader/debuil
    dh_gencontrol -O--buildsystem=pybuild
    dh_md5sums -O--buildsystem=pybuild
    dh_builddeb -O--buildsystem=pybuild
-dpkg-deb: building package 'crossgrader' in '../crossgrader_0.0.1-1_all.deb'.
+dpkg-deb: building package 'crossgrader' in '../crossgrader_0.0.2-1_all.deb'.
  dpkg-genbuildinfo
- dpkg-genchanges  >../debian-crossgrader_0.0.1-1_amd64.changes
+ dpkg-genchanges  >../debian-crossgrader_0.0.2-1_amd64.changes
 dpkg-genchanges: info: including full source code in upload
  dpkg-source --after-build .
 dpkg-buildpackage: info: full upload (original source is included)
-Now running lintian debian-crossgrader_0.0.1-1_amd64.changes ...
+Now running lintian debian-crossgrader_0.0.2-1_amd64.changes ...
 W: crossgrader: uses-dpkg-database-directly usr/lib/python3/dist-packages/debian_crossgrader/crossgrade.py
 W: crossgrader: binary-without-manpage usr/bin/crossgrade-package-check
 W: crossgrader: binary-without-manpage usr/bin/crossgrader

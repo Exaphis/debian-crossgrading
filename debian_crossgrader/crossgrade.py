@@ -391,7 +391,7 @@ class Crossgrader:
 
         error_count_option = '--abort-after={}'.format(max_error_count)
 
-        proc = subprocess.Popen(['dpkg', '-i', error_count_option, *debs_to_install],
+        proc = subprocess.Popen(['dpkg', '-i', error_count_option] + debs_to_install,
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
         __, __, errs = cmd_utils.tee_process(proc)
@@ -535,7 +535,7 @@ class Crossgrader:
             print('Some dpkg errors could not be fixed automatically.')
 
         print('Re-marking packages as auto-installed...')
-        ret_code = subprocess.call(['apt-mark', 'auto', *mark_auto_pkgs],
+        ret_code = subprocess.call(['apt-mark', 'auto'] + mark_auto_pkgs,
                                    stdout=subprocess.DEVNULL)
         print('...done')
 
@@ -884,7 +884,7 @@ def third_stage(args):
             return
 
         if cont == 'y':
-            subprocess.check_call(['dpkg', '--purge', *targets])
+            subprocess.check_call(['dpkg', '--purge'] + targets)
             remaining = crossgrader.get_arch_packages(foreign_arch)
             if remaining:
                 print('The following packages could not be successfully purged:')

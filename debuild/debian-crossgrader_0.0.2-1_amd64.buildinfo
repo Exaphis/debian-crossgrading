@@ -2,19 +2,19 @@ Format: 1.0
 Source: debian-crossgrader
 Binary: crossgrader
 Architecture: all source
-Version: 0.0.1-1
+Version: 0.0.2-1
 Checksums-Md5:
- 9a528873644e6bf646501e6cfbc575e1 968 debian-crossgrader_0.0.1-1.dsc
- 87d05d5a53fb5833a6fb9810803a7bd0 14632 crossgrader_0.0.1-1_all.deb
+ 2899f67baa684974a513d5dcbd44287a 968 debian-crossgrader_0.0.2-1.dsc
+ 01b2f91fb05a44be77e89467b449e1a3 14760 crossgrader_0.0.2-1_all.deb
 Checksums-Sha1:
- eb788fd63b5a0b62001913cd8c97d552c7670fd4 968 debian-crossgrader_0.0.1-1.dsc
- 9e1af077be790e988b0c1fd73e612405fd793de3 14632 crossgrader_0.0.1-1_all.deb
+ d0dcc9af1cfb7300433bcb55867b3f6c8fa3f4dc 968 debian-crossgrader_0.0.2-1.dsc
+ c701f5f3d30e93e60cb3f16288c95067f6f685a6 14760 crossgrader_0.0.2-1_all.deb
 Checksums-Sha256:
- 29f5b25775b770938440dc39f647fe37b976ddbf170fb313bb94f86105a0fd6e 968 debian-crossgrader_0.0.1-1.dsc
- 2f743d2abcb549530fecaff696bcd1ba903e19862c820838b6f062438347e4da 14632 crossgrader_0.0.1-1_all.deb
+ 24fbd7f9b648b25a13d20e3b4e1632224a278c2b6bac779bcdb4f0fb6ee05cfc 968 debian-crossgrader_0.0.2-1.dsc
+ 2e5270e94a4fb7cd4e657cd91806a2052cc50136d01940e16b40837a1f424c0a 14760 crossgrader_0.0.2-1_all.deb
 Build-Origin: Debian
 Build-Architecture: amd64
-Build-Date: Fri, 31 Jul 2020 18:32:55 -0700
+Build-Date: Sat, 01 Aug 2020 22:55:01 -0700
 Build-Tainted-By:
  merged-usr-via-symlinks
  usr-local-has-programs
@@ -179,4 +179,4 @@ Installed-Build-Depends:
 Environment:
  DEB_BUILD_OPTIONS="parallel=16"
  LANG="en_US.UTF-8"
- SOURCE_DATE_EPOCH="1595905090"
+ SOURCE_DATE_EPOCH="1596248619"
