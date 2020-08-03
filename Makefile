@@ -1,23 +1,13 @@
-deb_src_name = $(shell dpkg-parsechangelog -ldebian/changelog -S Source)
-deb_version = $(shell dpkg-parsechangelog -ldebian/changelog -S Version)
-# version format: [epoch:]upstream_version[-debian_revision]
-upstream_version = $(shell tmp='$(deb_version)'; tmp="$${tmp\#\#*:}"; echo $${tmp%%-*})
-
-
 build_all: build_bdist build_sdist debuild
 
-build_bdist: clean
+build_bdist:
 	python3 setup.py bdist_wheel
 
-build_sdist: clean
+build_sdist:
 	python3 setup.py sdist
 
-debuild: build_sdist
-	mkdir debuild/debian-crossgrader-source
-	tar -xf $(wildcard dist/*.tar.gz) -C debuild/debian-crossgrader-source --strip-components 1
-	cp $(wildcard dist/*.tar.gz) debuild/$(deb_src_name)_$(upstream_version).orig.tar.gz
-	cp -r debian debuild/debian-crossgrader-source
-	cd debuild/debian-crossgrader-source && debuild -us -uc
+debuild:
+	debuild
 
 clean:
 	rm -rf build/

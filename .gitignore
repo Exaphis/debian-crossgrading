@@ -138,5 +138,10 @@ dmypy.json
 cython_debug/
 
 *.swp
-debuild/debian-crossgrader-source
-debuild/*.orig.tar.gz
+.pybuild
+debian/files
+debian/.debhelper
+debian/crossgrader.debhelper.log
+debian/crossgrader.*.debhelper
+debian/crossgrader.substvars
+debian/crossgrader
