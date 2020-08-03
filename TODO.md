@@ -1,12 +1,11 @@
 Incomplete
 ---
 #### Miscellaneous
-- [ ] Testing in Debian Jessie
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
-
-#### Packaging
-- [ ] Close ITP bug (waiting for ID)
+- [ ] Testing with non-64-bit target (i.e. amd64 to i386)
+- [ ] Testing on non-usrmerge systems
+- [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
 
 Completed
 ---
@@ -36,9 +35,10 @@ Completed
 
 #### Miscellaneous
 - [x] Initramfs binary arch verification
-    - How to get architecture name outputted by `file` reliably?
-        - e.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64
-        - Solution: get output of `file /bin/dpkg`
+    - ~~How to get architecture name outputted by `file` reliably?~~
+        - ~~E.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64~~
+        - ~~Solution: get output of `file /bin/dpkg`~~
+    - Use arch-test's elf-arch to get the architecture of copied binaries and check if it matches the target architecture
 - [x] Document crossgrade between architectures not supported on the same CPU
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
@@ -49,6 +49,8 @@ Completed
     - [x] Python packaging
     - [x] Debian packaging
 - [x] Add qemu-user-static to depends
+- [x] Close ITP bug (966533)
+
 
 #### Supporting Debian Jessie
 - [x] Rewrite code for Python 3.4 support
