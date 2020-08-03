@@ -2,5 +2,6 @@
 
 set -e
 crossgrader placeholder --cleanup
+crossgrade-package-check --cleanup
 
 #DEBHELPER#

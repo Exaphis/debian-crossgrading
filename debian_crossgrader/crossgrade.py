@@ -798,7 +798,7 @@ def first_stage(args):
             # after crossgrade
             # crossgrade qemu just if qemu-user-static exists for any arch
             # pairs that can be run on the current arch but the current can't
-            # be run on the foreign arch (e.g. amd64->i386? who would do that?)
+            # be run on the foreign arch
             qemu_path_exists = os.path.isdir(crossgrader.qemu_deb_path)
             crossgrade_qemu = crossgrader.qemu_installed or crossgrader.non_supported_arch
             if crossgrade_qemu and not qemu_path_exists:
@@ -922,7 +922,7 @@ def install_from(args):
 
 def cleanup():
     """Cleans up any extra files, namely Crossgrader's storage_dir"""
-    os.removedirs(Crossgrader.storage_dir)
+    shutil.rmtree(Crossgrader.storage_dir)
 
 
 def main():

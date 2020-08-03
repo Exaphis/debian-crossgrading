@@ -1,6 +1,8 @@
 """Checks if your installed packages were all successfully crossgraded."""
 
+import argparse
 import os
+import shutil
 import subprocess
 import sys
 
@@ -68,17 +70,33 @@ def compare_package_list(input_file):
 
 def main():
     """Main function of the script"""
-    out_file = 'packages.txt'
+    parser = argparse.ArgumentParser(
+        description='Checks if your installed packages were all successfully crossgraded.'
+    )
+    parser.add_argument('--cleanup', action='store_true',
+                        help=('Remove any package checker data. Next time the checker is run, '
+                              'the package list will be regenerated.'))
+    args = parser.parse_args()
+
     app_name = 'debian_crossgrader_package_check'
     storage_dir = appdirs.site_data_dir(app_name)
-    os.makedirs(storage_dir, exist_ok=True)
 
-    file_name = os.path.join(storage_dir, out_file)
-
-    if not os.path.isfile(file_name):
-        save_package_list(file_name)
+    if args.cleanup:
+        if os.path.isdir(storage_dir):
+            shutil.rmtree(storage_dir)
+            print('Data folder removed.')
+        else:
+            print('Data folder did not exist.')
     else:
-        compare_package_list(file_name)
+        out_file = 'packages.txt'
+        os.makedirs(storage_dir, exist_ok=True)
+
+        file_name = os.path.join(storage_dir, out_file)
+
+        if not os.path.isfile(file_name):
+            save_package_list(file_name)
+        else:
+            compare_package_list(file_name)
 
 
 if __name__ == '__main__':

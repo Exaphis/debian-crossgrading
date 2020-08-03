@@ -8,6 +8,7 @@ The crossgrader is split into three stages, each run by its own command. `TARGET
     - Crossgrades all packages with Priority: required or Priority: important
     - Crossgrades python3 and python3-apt so the crossgrader can run
 2. Second stage - `crossgrader TARGET_ARCH --second-stage`
+    - Crossgrades qemu-user-static first if it is installed
     - Crossgrades all packages that are not in the architecture `TARGET_ARCH`
 3. Third stage - `crossgrader TARGET_ARCH --third-stage FROM_ARCH`
     - Removes all packages in the architecture `FROM_ARCH`
