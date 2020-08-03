@@ -3,9 +3,11 @@ Incomplete
 #### Miscellaneous
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
-- [ ] Testing with non-64-bit target (i.e. amd64 to i386)
+- [ ] Investigate why initramfs build is failing with plymouth (libpango-1.0.so is missing) and find how to fix
 - [ ] Testing on non-usrmerge systems
 - [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
+- [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
+- [ ] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
 
 Completed
 ---
@@ -43,6 +45,8 @@ Completed
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
     - [x] Testing...
+- [x] Testing with non-64-bit target (i.e. amd64 to i386)
+- [x] Automate initial crossgrade of qemu-user-static/binfmt-support after reboot to target arch
 
 #### Packaging
 - [x] Packaging crossgrade tool
@@ -64,4 +68,3 @@ Notes
 ---
 - Should we make sure the size of the new initramfs will not exceed the total amount of RAM available?
 - How can we point the bootloader to the right kernel/initramfs without user input?
-- Automate initial crossgrade of qemu-user-static/binfmt-support after reboot to target arch
