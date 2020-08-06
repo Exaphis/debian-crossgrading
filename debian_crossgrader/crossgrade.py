@@ -85,6 +85,7 @@ class Crossgrader:
         current_arch: A string representing the current architecture of dpkg.
         non_supported_arch: A boolean indicating whether the target arch is natively supported
             by the current CPU.
+        qemu_installed: A boolean indicated whether or not qemu-user-static is installed.
 
     Class attributes:
         initramfs_functions_backup_path: Path to the backup of hook-functions.
@@ -657,8 +658,8 @@ class Crossgrader:
             except KeyError:
                 if not ignore_unavailable_targets:
                     raise PackageNotFoundError(name_with_arch)
-                else:
-                    print("Couldn't find {}, ignoring...".format(name_with_arch))
+
+                print("Couldn't find {}, ignoring...".format(name_with_arch))
 
         return packages
 
@@ -726,10 +727,18 @@ class Crossgrader:
             if self._is_first_stage_target(package):
                 targets.add(package.shortname)
 
+        # crossgrade crossgrader dependencies
         # if python-apt is not crossgraded, it will not find any packages other than
         # its own architecture/installed packages
-        targets.add('python3-apt')
-        targets.add('python3')
+
+        crossgrader_pkg = self._apt_cache['crossgrader']
+        if not crossgrader_pkg.is_installed:
+            # fallback if not installed as package
+            targets.add('python3-apt')
+            targets.add('python3')
+        else:
+            installed_deps = crossgrader_pkg.installed.dependencies.installed_target_versions
+            targets.update(ver.package.shortname for ver in installed_deps)
 
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 

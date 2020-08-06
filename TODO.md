@@ -8,6 +8,7 @@ Incomplete
 - [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
 - [ ] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
+- [ ] Is qemu-user OK to use or will the libraries be too much?
 
 Completed
 ---
