@@ -9,6 +9,8 @@ Incomplete
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
 - [ ] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
 - [ ] Is qemu-user OK to use or will the libraries be too much?
+- [ ] Testing with /home, /var, /tmp on different partitions
+- [ ] Stop using elf-arch in initramfs hook (arch-test doesn't have it in Stretch)
 
 Completed
 ---

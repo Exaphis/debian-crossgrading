@@ -47,7 +47,10 @@ def tee_process(process):
         return data_read
 
 
-    text_mode = process.text_mode
+    try:
+        text_mode = process.text_mode
+    except AttributeError:  # workaround for Python 3.5
+        text_mode = process.universal_newlines
 
     # stdout/stderr can be None if they are set to sys.stdout/sys.stderr
     process_outs = []
