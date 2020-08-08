@@ -1,35 +1,23 @@
 # begin arch-check-hook
 
-# All instances of TARGET_ARCH_PLACEHOLDER will be replaced by
-# the real target architecture when the hook is installed.
-
 # The line "# begin arch-check-hook" is used to check if the hook
 # has been installed.
 
 # $1 - file to check
 # $2 - architecture to check file against
 check_file_arch () {
-    local file_arch detect_status
-    detect_status=0
-    file_arch=`elf-arch "${1}"` || detect_status="${?}"
+    local arch_match arch_match_output
+    arch_match_output=$(python3 -c "import sys; from debian_crossgrader.utils.elf import e_machine; val=e_machine('${1}'); sys.exit(0 if val is None else val != e_machine('/usr/bin/dpkg'))")
+    arch_match=${?}
+    echo "${arch_match_output}" | sed 's/^/crossgrader initramfs hook: /'
 
-    arch_match=0
-    elf-arch -a "${2}" "${1}" || arch_match="${?}"
-
-    # if arch-test is not runnable (e.g. exec format error), fail silently
-
-    # detect_status being 0 means $1 contains a binary
-    # must be used because elf-arch -a has exit code 1 for both file not being a binary
-    # and file not being the right architecture
-    if [ ${detect_status} -eq 0 -a ${arch_match} -ne 0 ]; then
-        echo "WARNING: initramfs binary ${1} has non-target architecture ${file_arch}."
-        echo "Ensure that it can be executed or crossgrade the package, then update the initramfs again."
+    if [ ${arch_match} -ne 0 ]; then
+        echo "crossgrader initramfs hook: (WARNING) initramfs binary ${1} might not be in the correct architecture."
+        echo 'crossgrader initramfs hook: Ensure that it can be executed or crossgrade the package containing it, then update the initramfs again.'
+        echo "crossgrader initramfs hook: output of \`file ${1}\`:"
+        file "${1}"
     fi
 }
 
-if command -v elf-arch > /dev/null; then
-    check_file_arch ${1} "TARGET_ARCH_PLACEHOLDER"
-else
-    echo "arch-test is not installed. Install it for the binary arch test to function."
-fi
+check_file_arch "${1}"
 # end arch-check-hook

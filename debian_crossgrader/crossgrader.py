@@ -12,7 +12,6 @@ Classes:
 """
 
 
-import argparse
 from glob import glob
 import os
 import shutil
@@ -23,7 +22,7 @@ import traceback
 import appdirs
 import apt
 
-from debian_crossgrader import cmd_utils
+from debian_crossgrader import utils
 
 
 class CrossgradingError(Exception):
@@ -395,7 +394,7 @@ class Crossgrader:
         proc = subprocess.Popen(['dpkg', '-i', error_count_option] + debs_to_install,
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
-        __, __, errs = cmd_utils.tee_process(proc)
+        __, __, errs = utils.cmd.tee_process(proc)
 
         failed_debs, failed_packages = get_dpkg_failures(errs.splitlines())
 
@@ -403,7 +402,7 @@ class Crossgrader:
         proc = subprocess.Popen(['dpkg', '--configure', '-a', error_count_option],
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
-        __, __, errs = cmd_utils.tee_process(proc)
+        __, __, errs = utils.cmd.tee_process(proc)
 
         new_failed_debs, new_failed_packages = get_dpkg_failures(errs.splitlines())
         failed_debs.update(new_failed_debs)
@@ -692,6 +691,12 @@ class Crossgrader:
         for hook_package in hook_packages:
             name, hook = hook_package.split(': ')
 
+            # handle output that might not be packages (e.g. diversions)
+            try:
+                package = self._apt_cache[name]
+            except KeyError:
+                continue
+
             if hook not in unaccounted_hooks:
                 print('Expected {} to contain an initramfs hook, but it does not.'.format(name))
                 print('Skipping.')
@@ -699,7 +704,6 @@ class Crossgrader:
 
             unaccounted_hooks.remove(hook)
 
-            package = self._apt_cache[name]
 
             if not package.is_installed:
                 print(('WARNING: {}, containing an initramfs hook, '
@@ -722,8 +726,8 @@ class Crossgrader:
                                                       '${Package}:${Architecture}\n',
                                                       '-W'], universal_newlines=True).splitlines()
 
-        for full_name in installed_packages:
-            package = self._apt_cache[full_name]
+        for name in installed_packages:
+            package = self._apt_cache[name]
             if self._is_first_stage_target(package):
                 targets.add(package.shortname)
 
@@ -737,8 +741,9 @@ class Crossgrader:
             targets.add('python3-apt')
             targets.add('python3')
         else:
-            installed_deps = crossgrader_pkg.installed.dependencies.installed_target_versions
-            targets.update(ver.package.shortname for ver in installed_deps)
+            for dep in crossgrader_pkg.installed.dependencies:
+                targets.update(ver.package.shortname for ver in dep.installed_target_versions
+                               if ver.architecture not in ('all', self.target_arch))
 
         return self.find_packages_from_names(targets, ignore_unavailable_targets)
 
@@ -777,223 +782,3 @@ class Crossgrader:
                                                       '-W'], universal_newlines=True).splitlines()
 
         return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
-
-
-def first_stage(args):
-    """Runs first stage of the crossgrade process.
-
-    Installs initramfs packages and packages with Priority: required/important.
-    Does not need to be run if the target architecture can run the existing architecture.
-    """
-    with Crossgrader(args.target_arch) as crossgrader:
-        if args.packages:
-            targets = crossgrader.find_packages_from_names(args.packages)
-        else:
-            targets = crossgrader.list_first_stage_targets(
-                ignore_initramfs_remnants=args.force_initramfs,
-                ignore_unavailable_targets=args.force_unavailable
-            )
-
-        print('{} targets found.'.format(len(targets)))
-        for pkg_name in sorted(map(lambda pkg: pkg.fullname, targets)):
-            print(pkg_name)
-
-        if args.dry_run:
-            return
-
-        cont = input('Do you want to continue [y/N]? ').lower()
-        if cont == 'y':
-            # cache qemu debs first because internet access might go down
-            # after crossgrade
-            # crossgrade qemu just if qemu-user-static exists for any arch
-            # pairs that can be run on the current arch but the current can't
-            # be run on the foreign arch
-            qemu_path_exists = os.path.isdir(crossgrader.qemu_deb_path)
-            crossgrade_qemu = crossgrader.qemu_installed or crossgrader.non_supported_arch
-            if crossgrade_qemu and not qemu_path_exists:
-                print('Saving qemu-user-static debs for second stage...')
-                qemu_pkgs = crossgrader.find_packages_from_names(
-                    ['qemu-user-static', 'binfmt-support']
-                )
-                crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
-                print('qemu-user-static saved.')
-
-            crossgrader.cache_package_debs(targets)
-
-            if not args.download_only:
-                # fix_broken should be disabled for first stage so apt doesn't
-                # decide to uninstall some necessary packages
-                crossgrader.install_packages(fix_broken=False)
-                subprocess.call(['update-initramfs', '-u', '-k', 'all'])
-        else:
-            print('Aborted.')
-
-
-def second_stage(args):
-    """Runs the second stage of the crossgrade process.
-
-    Crossgrades all packages that are not in the target architecture.
-    """
-    with Crossgrader(args.target_arch) as crossgrader:
-        # crossgrade qemu-user-static first to prevent list_second_stage_targets
-        # from finding it
-        if os.path.isdir(crossgrader.qemu_deb_path):
-            print('qemu-user-static must be crossgraded.')
-            if not args.dry_run:
-                cont = input('Do you want to continue [y/N]? ').lower()
-                if cont == 'y':
-                    print('Crossgrading saved qemu-user-static...')
-                    crossgrader.install_packages(
-                        glob(os.path.join(crossgrader.qemu_deb_path, '*.deb')),
-                        fix_broken=False
-                    )
-                    os.rmdir(crossgrader.qemu_deb_path)
-                    print('qemu-user-static successfully crossgraded.')
-            else:
-                print('qemu-user-static crossgrade skipped.')
-
-        targets = crossgrader.list_second_stage_targets(
-            ignore_unavailable_targets=args.force_unavailable
-        )
-
-        print('{} targets found.'.format(len(targets)))
-
-        if args.dry_run:
-            return
-
-        cont = input('Do you want to continue [y/N]? ').lower()
-        if cont == 'y':
-            crossgrader.cache_package_debs(targets)
-
-            if not args.download_only:
-                crossgrader.install_packages()
-        else:
-            print('Aborted')
-
-
-def third_stage(args):
-    """Runs the third stage of the crossgrading process.
-
-    Removes all packages from the given architecture, excluding ones contained by args.packages.
-    """
-    with Crossgrader(args.target_arch) as crossgrader:
-        foreign_arch = args.third_stage
-        targets = crossgrader.get_arch_packages(foreign_arch)
-
-        if args.packages:
-            targets = [pkg_name for pkg_name in targets if pkg_name not in args.packages]
-
-        print('{} targets found.'.format(len(targets)))
-        for pkg_name in sorted(targets):
-            print(pkg_name)
-
-        cont = input('Do you want to continue [y/N]? ').lower()
-
-        if args.dry_run:
-            return
-
-        if cont == 'y':
-            subprocess.check_call(['dpkg', '--purge'] + targets)
-            remaining = crossgrader.get_arch_packages(foreign_arch)
-            if remaining:
-                print('The following packages could not be successfully purged:')
-                for pkg_name in remaining:
-                    print('\t{}'.format(pkg_name))
-            else:
-                print('All targets successfully purged.')
-                print(('If desired, run dpkg --remove-architecture {} '
-                       'to complete the crossgrade.').format(foreign_arch))
-
-            print('Removing initramfs binary architecture check hook...')
-            if crossgrader.remove_initramfs_arch_check():
-                print('Hook successfully removed.')
-            else:
-                print('Hook could not be removed.')
-
-
-def install_from(args):
-    """Installs all .debs from the specified location."""
-    with Crossgrader(args.target_arch) as crossgrader:
-        debs = glob(os.path.join(args.install_from, '*.deb'))
-        print('Installing the following .debs:')
-        for deb in debs:
-            print('\t{}'.format(deb))
-
-        if args.dry_run:
-            return
-
-        cont = input('Do you want to continue [y/N]? ').lower()
-        if cont == 'y':
-            crossgrader.install_packages(debs)
-        else:
-            print('Aborted.')
-
-
-def cleanup():
-    """Cleans up any extra files, namely Crossgrader's storage_dir"""
-    shutil.rmtree(Crossgrader.storage_dir)
-
-
-def main():
-    """Crossgrade driver, executed only if run as script"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('target_arch', help='Target architecture of the crossgrade')
-    parser.add_argument('--second-stage',
-                        help=('Run the second stage of the crossgrading process '
-                              '(crossgrading all remaining packages)'),
-                        action='store_true')
-    parser.add_argument('--third-stage',
-                        help=('Run the third stage of the crossgrading process '
-                              '(removing all packages under specified arch)'),
-                        nargs='?')
-    parser.add_argument('--download-only',
-                        help='Perform target package listing and download, but not installation',
-                        action='store_true')
-    parser.add_argument('--install-from',
-                        help=('Perform .deb installation from a specified location '
-                              '(default: {}), but not package listing '
-                              'and download').format(Crossgrader.APT_CACHE_DIR),
-                        nargs='?', const=Crossgrader.APT_CACHE_DIR)
-    parser.add_argument('--force-unavailable',
-                        help=('Force crossgrade even if not all packages to be crossgraded'
-                              ' are available in the target architecture'),
-                        action='store_true')
-    parser.add_argument('--force-initramfs',
-                        help=('Force crossgrade even if not all initramfs'
-                              ' hooks could be crossgraded'),
-                        action='store_true')
-    parser.add_argument('-f', '--force-all',
-                        help='Equivalent to --force-install --force-initramfs',
-                        action='store_true')
-    parser.add_argument('-p', '--packages',
-                        help=('Crossgrade the subsequent package names and nothing else. '
-                              'If used with --third-stage, the subsequent packages will '
-                              'be excluded from removal'),
-                        nargs='+')
-    parser.add_argument('--dry-run',
-                        help='Run the crossgrader, but do not change anything',
-                        action='store_true')
-    parser.add_argument('--cleanup',
-                        help=('Clean up any extra files stored by the crossgrader. '
-                              'The given architecture will be ignored.'),
-                        action='store_true')
-    args = parser.parse_args()
-
-    if args.force_all:
-        args.force_initramfs = True
-        args.force_unavailable = True
-
-    if args.cleanup:
-        cleanup()
-    elif args.install_from:
-        install_from(args)
-    elif args.second_stage:
-        second_stage(args)
-    elif args.third_stage:
-        third_stage(args)
-    else:
-        first_stage(args)
-
-
-if __name__ == '__main__':
-    main()
