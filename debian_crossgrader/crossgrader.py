@@ -22,7 +22,9 @@ import traceback
 import appdirs
 import apt
 
-from debian_crossgrader import utils
+from debian_crossgrader.utils import apt as apt_utils
+from debian_crossgrader.utils import cmd as cmd_utils
+from debian_crossgrader.utils import shells as shells_utils
 
 
 class CrossgradingError(Exception):
@@ -64,18 +66,6 @@ class RemnantInitramfsHooksError(CrossgradingError):
         self.hooks = hooks
 
 
-class PackageNotFoundError(CrossgradingError):
-    """Raised when a package does not exist in APT's cache.
-
-    Attributes:
-        package: The name of the package that could not be found.
-    """
-
-    def __init__(self, package):
-        super().__init__("{} could not be found in APT's cache".format(package))
-        self.package = package
-
-
 class Crossgrader:
     """Finds packages to crossgrade and crossgrades them.
 
@@ -103,7 +93,8 @@ class Crossgrader:
 
     APP_NAME = 'debian_crossgrader'
     storage_dir = appdirs.site_data_dir(APP_NAME)
-    os.makedirs(storage_dir, exist_ok=True)
+
+    FALLBACK_CROSSGRADER_DEPENDENCIES = ['python3', 'python3-apt']
 
     # qemu_deb_path will be filled w/ qemu-user-static debs if self.non_supported_arch == True
     # during first stage
@@ -124,6 +115,11 @@ class Crossgrader:
 
         # set LC_ALL=C so we can rely on command output being English
         os.environ['LC_ALL'] = 'C'
+
+        try:
+            os.makedirs(self.storage_dir, exist_ok=True)
+        except PermissionError:
+            raise PermissionError('crossgrader: must be superuser.')
 
         valid_architectures = subprocess.check_output(['dpkg-architecture', '--list-known'],
                                                       universal_newlines=True).splitlines()
@@ -394,7 +390,7 @@ class Crossgrader:
         proc = subprocess.Popen(['dpkg', '-i', error_count_option] + debs_to_install,
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
-        __, __, errs = utils.cmd.tee_process(proc)
+        __, __, errs = cmd_utils.tee_process(proc)
 
         failed_debs, failed_packages = get_dpkg_failures(errs.splitlines())
 
@@ -402,7 +398,7 @@ class Crossgrader:
         proc = subprocess.Popen(['dpkg', '--configure', '-a', error_count_option],
                                 stdout=sys.stdout, stderr=subprocess.PIPE,
                                 universal_newlines=True)
-        __, __, errs = utils.cmd.tee_process(proc)
+        __, __, errs = cmd_utils.tee_process(proc)
 
         new_failed_debs, new_failed_packages = get_dpkg_failures(errs.splitlines())
         failed_debs.update(new_failed_debs)
@@ -436,9 +432,9 @@ class Crossgrader:
         # crossgrade in one call to prevent repeat triggers
         # (e.g. initramfs rebuild), saving time
 
-        # TODO: Experiment with Guillem's suggestion
         # https://blog.zugschlus.de/archives/972-How-to-amd64-an-i386-Debian-installation-with-multiarch.html#c24572
         # Summary: Use dpkg --unpack; dpkg --configure --pending instead of dpkg -i?
+        # dpkg --unpack still gets stuck because of various pre-depends
 
         loop_count = 0
         debs_remaining = debs_to_install
@@ -601,6 +597,12 @@ class Crossgrader:
             for deb in glob(os.path.join(Crossgrader.APT_CACHE_DIR, '*.deb')):
                 shutil.move(deb, target_dir)
 
+    def find_package_objs(self, names, **kwargs):
+        """Wrapper for debian_crossgrader.utils.apt's find_package_objs,
+        passing in the instance's cache."""
+        return apt_utils.find_package_objs(names, self._apt_cache, **kwargs)
+
+
     def _is_first_stage_target(self, package):
         """Returns a boolean of whether or not the apt.package.Package is a first stage target.
 
@@ -624,86 +626,27 @@ class Crossgrader:
 
         return False
 
-    def find_packages_from_names(self, package_names,
-                                 ignore_unavailable_targets=False,
-                                 ignore_installed=True):
-        """Returns a list of apt.package.Package objects corresponding to the given names.
-
-        If no architecture is specified, it defaults to the target architecture.
-
-        Args:
-            package_names: A list of package names
-            ignore_unavailable_targets: If true, ignore names that have no corresponding
-                packages
-            ignore_installed: If true, ignore packages that have already been installed
+    def _get_initramfs_hook_packages(self, ignore_initramfs_remnants=False):
+        """Returns a set of packages shortnames that contain initramfs hooks.
 
         Raises:
-            PackageNotFoundError: A package requested was not available in APT's cache.
+            RemnantInitramfsHooksError: Some initramfs hooks could not be matched with a package.
         """
-        packages = []
-        for name_with_arch in package_names:
-            if ':' in name_with_arch:
-                name, arch = name_with_arch.split(':')
-            else:
-                name = name_with_arch
-                arch = self.target_arch
-
-            target_name = '{}:{}'.format(name, arch)
-
-            try:
-                package = self._apt_cache[target_name]
-                if not ignore_installed or not package.is_installed:
-                    packages.append(package)
-            except KeyError:
-                if not ignore_unavailable_targets:
-                    raise PackageNotFoundError(name_with_arch)
-
-                print("Couldn't find {}, ignoring...".format(name_with_arch))
-
-        return packages
-
-    def list_first_stage_targets(self, ignore_initramfs_remnants=False,
-                                 ignore_unavailable_targets=False):
-        """Returns a list of apt.package.Package objects that must be crossgraded before reboot.
-
-        Retrieves and returns a list of all packages with Priority: required/important
-        or installed initramfs hooks.
-
-        Args:
-            ignore_initramfs_remnants: If true, do not raise a RemnantInitramfsHooksError if
-                there are initramfs hooks that could not be linked.
-            ignore_unavailable_targets: If true, do not raise a PackageNotFoundError if a package
-                could not be found in the target architecture.
-
-        Raises:
-            RemnantInitramfsHooksError: Some initramfs hooks could not be linked to a
-                first stage target package.
-            PackageNotFoundError: A required package in the target architecture was not available
-                in APT's cache.
-        """
+        out_names = set()
 
         unaccounted_hooks = set(glob('/usr/share/initramfs-tools/hooks/*'))
-        targets = set()
+        hook_pkgs = apt_utils.iter_packages_containing_files(
+            self._apt_cache, '/usr/share/initramfs-tools/hooks/*'
+        )
 
-        hook_packages = subprocess.check_output(['dpkg-query', '-S',
-                                                 '/usr/share/initramfs-tools/hooks/*'],
-                                                universal_newlines=True).splitlines()
-        for hook_package in hook_packages:
-            name, hook = hook_package.split(': ')
-
-            # handle output that might not be packages (e.g. diversions)
-            try:
-                package = self._apt_cache[name]
-            except KeyError:
-                continue
-
-            if hook not in unaccounted_hooks:
-                print('Expected {} to contain an initramfs hook, but it does not.'.format(name))
+        for package, hook_file in hook_pkgs:
+            if hook_file not in unaccounted_hooks:
+                print(('Expected {} to contain an initramfs hook, '
+                       'but it does not.').format(package.fullname))
                 print('Skipping.')
                 continue
 
-            unaccounted_hooks.remove(hook)
-
+            unaccounted_hooks.discard(hook_file)
 
             if not package.is_installed:
                 print(('WARNING: {}, containing an initramfs hook, '
@@ -714,38 +657,72 @@ class Crossgrader:
                 architecture = package.installed.architecture
 
             if architecture not in ('all', self.target_arch):
-                targets.add(package.shortname)
+                out_names.add(package.shortname)
 
         if unaccounted_hooks and not ignore_initramfs_remnants:
             raise RemnantInitramfsHooksError(unaccounted_hooks)
 
-        # looping through the APT cache using python-apt takes 10+ seconds on
-        # some systems
-        # dpkg-query instead takes <1 second
-        installed_packages = subprocess.check_output(['dpkg-query', '-f',
-                                                      '${Package}:${Architecture}\n',
-                                                      '-W'], universal_newlines=True).splitlines()
+        return out_names
 
-        for name in installed_packages:
-            package = self._apt_cache[name]
-            if self._is_first_stage_target(package):
-                targets.add(package.shortname)
+    def list_first_stage_targets(self, ignore_initramfs_remnants=False,
+                                 ignore_unavailable_targets=False):
+        """Returns a list of apt.package.Package objects that must be crossgraded before reboot.
+
+        Retrieves and returns a list of all packages with Priority: required/important,
+        packages with installed initramfs hooks, packages for login shells, and crossgrader
+        dependencies.
+
+        Args:
+            ignore_initramfs_remnants: If true, do not raise a RemnantInitramfsHooksError if
+                there are initramfs hooks that could not be linked.
+            ignore_unavailable_targets: If true, do not raise a PackageNotFoundError if a package
+                could not be found in the target architecture.
+
+        Raises:
+            RemnantInitramfsHooksError: Some initramfs hooks could not be matched with a package.
+            PackageNotFoundError: A required package in the target architecture was not available
+                in APT's cache.
+        """
+
+        targets = {pkg.shortname for pkg in apt_utils.iter_package_objs(self._apt_cache)
+                   if self._is_first_stage_target(pkg)}
+        targets |= self._get_initramfs_hook_packages(ignore_initramfs_remnants)
 
         # crossgrade crossgrader dependencies
         # if python-apt is not crossgraded, it will not find any packages other than
         # its own architecture/installed packages
-
-        crossgrader_pkg = self._apt_cache['crossgrader']
-        if not crossgrader_pkg.is_installed:
-            # fallback if not installed as package
-            targets.add('python3-apt')
-            targets.add('python3')
+        try:
+            crossgrader_pkg = self._apt_cache['crossgrader']
+        except KeyError:
+            # fallback if not installed as package or package doesn't exist
+            targets.update(self.FALLBACK_CROSSGRADER_DEPENDENCIES)
         else:
-            for dep in crossgrader_pkg.installed.dependencies:
-                targets.update(ver.package.shortname for ver in dep.installed_target_versions
-                               if ver.architecture not in ('all', self.target_arch))
+            if not crossgrader_pkg.is_installed:
+                targets.update(self.FALLBACK_CROSSGRADER_DEPENDENCIES)
+            else:
+                for dep in crossgrader_pkg.installed.dependencies:
+                    targets.update(ver.package.shortname for ver in dep.installed_target_versions
+                                   if ver.architecture not in ('all', self.target_arch))
 
-        return self.find_packages_from_names(targets, ignore_unavailable_targets)
+        # crossgrade all available login shells
+        # if login shell is not crossgrader and isn't priority: required (e.g. zsh), then the user
+        # cannot login
+        shells = shells_utils.list_shells()
+        for package, __ in apt_utils.iter_packages_containing_files(self._apt_cache, *shells):
+            if not package.is_installed:
+                print(('WARNING: {}, containing a login shell, '
+                       'is marked as not fully installed.').format(package))
+                print('Assuming it is installed.')
+                architecture = package.candidate.architecture
+            else:
+                architecture = package.installed.architecture
+
+            if architecture not in ('all', self.target_arch):
+                targets.add(package.shortname)
+
+        return self.find_package_objs(targets, default_arch=self.target_arch,
+                                      ignore_unavailable_targets=ignore_unavailable_targets,
+                                      ignore_installed=True)
 
     def list_second_stage_targets(self, ignore_unavailable_targets):
         """Returns a list of apt.package.Package objects that are not in the target architecture.
@@ -758,27 +735,14 @@ class Crossgrader:
             PackageNotFoundError: A required package in the target architecture was not available
                 in APT's cache.
         """
-
         targets = set()
-        installed_packages = subprocess.check_output(['dpkg-query', '-f',
-                                                      '${Package}:${Architecture}\n',
-                                                      '-W'], universal_newlines=True).splitlines()
-        for full_name in installed_packages:
-            package = self._apt_cache[full_name]
-
-            if not package.is_installed:
+        for pkg in apt_utils.iter_package_objs(self._apt_cache):
+            if not pkg.is_installed:
                 continue
 
-            if package.installed.architecture not in ('all', self.target_arch):
-                targets.add(package.shortname)
+            if pkg.installed.architecture not in ('all', self.target_arch):
+                targets.add(pkg.shortname)
 
-        return self.find_packages_from_names(targets, ignore_unavailable_targets)
-
-    @staticmethod
-    def get_arch_packages(foreign_arch):
-        """Returns all the packages in the given architecture."""
-        installed_packages = subprocess.check_output(['dpkg-query', '-f',
-                                                      '${Package}:${Architecture}\n',
-                                                      '-W'], universal_newlines=True).splitlines()
-
-        return [pkg for pkg in installed_packages if pkg.split(':')[1] == foreign_arch]
+        return self.find_package_objs(targets, default_arch=self.target_arch,
+                                      ignore_unavailable_targets=ignore_unavailable_targets,
+                                      ignore_installed=True)

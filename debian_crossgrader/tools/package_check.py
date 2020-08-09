@@ -84,9 +84,9 @@ def main():
     if args.cleanup:
         if os.path.isdir(storage_dir):
             shutil.rmtree(storage_dir)
-            print('Data folder removed.')
+            print('package_check data folder removed.')
         else:
-            print('Data folder did not exist.')
+            print('package_check data folder did not exist.')
     else:
         out_file = 'packages.txt'
         os.makedirs(storage_dir, exist_ok=True)

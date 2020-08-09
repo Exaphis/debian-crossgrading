@@ -6,6 +6,7 @@ import argparse
 import shutil
 
 from debian_crossgrader.crossgrader import Crossgrader
+from debian_crossgrader.utils import apt as apt_utils
 
 def first_stage(args):
     """Runs first stage of the crossgrade process.
@@ -15,7 +16,7 @@ def first_stage(args):
     """
     with Crossgrader(args.target_arch) as crossgrader:
         if args.packages:
-            targets = crossgrader.find_packages_from_names(args.packages)
+            targets = crossgrader.find_package_objs(args.packages)
         else:
             targets = crossgrader.list_first_stage_targets(
                 ignore_initramfs_remnants=args.force_initramfs,
@@ -40,9 +41,7 @@ def first_stage(args):
             crossgrade_qemu = crossgrader.qemu_installed or crossgrader.non_supported_arch
             if crossgrade_qemu and not qemu_path_exists:
                 print('Saving qemu-user-static debs for second stage...')
-                qemu_pkgs = crossgrader.find_packages_from_names(
-                    ['qemu-user-static', 'binfmt-support']
-                )
+                qemu_pkgs = crossgrader.find_package_objs(['qemu-user-static', 'binfmt-support'])
                 crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
                 print('qemu-user-static saved.')
 
@@ -105,9 +104,8 @@ def third_stage(args):
     Removes all packages from the given architecture, excluding ones contained by args.packages.
     """
     with Crossgrader(args.target_arch) as crossgrader:
-        foreign_arch = args.third_stage
-        targets = crossgrader.get_arch_packages(foreign_arch)
-
+        foreign_arch = args.third_stage[0]
+        targets = apt_utils.get_arch_packages(foreign_arch)
         if args.packages:
             targets = [pkg_name for pkg_name in targets if pkg_name not in args.packages]
 
@@ -122,7 +120,10 @@ def third_stage(args):
 
         if cont == 'y':
             subprocess.check_call(['dpkg', '--purge'] + targets)
-            remaining = crossgrader.get_arch_packages(foreign_arch)
+            remaining = apt_utils.get_arch_packages(foreign_arch)
+            if args.packages:
+                remaining = [pkg_name for pkg_name in remaining if pkg_name not in args.packages]
+
             if remaining:
                 print('The following packages could not be successfully purged:')
                 for pkg_name in remaining:
@@ -159,7 +160,11 @@ def install_from(args):
 
 def cleanup():
     """Cleans up any extra files, namely Crossgrader's storage_dir"""
-    shutil.rmtree(Crossgrader.storage_dir)
+    if os.path.isdir(Crossgrader.storage_dir):
+        shutil.rmtree(Crossgrader.storage_dir)
+        print('crossgrader data folder removed.')
+    else:
+        print('crossgrader data folder did not exist.')
 
 
 def main():
@@ -173,7 +178,7 @@ def main():
     parser.add_argument('--third-stage',
                         help=('Run the third stage of the crossgrading process '
                               '(removing all packages under specified arch)'),
-                        nargs='?')
+                        metavar='OLD_ARCH', nargs=1)
     parser.add_argument('--download-only',
                         help='Perform target package listing and download, but not installation',
                         action='store_true')
@@ -222,4 +227,10 @@ def main():
     else:
         first_stage(args)
 
-main()
+# __name_ is debian_crossgrader.__main__ usually, __main__ if
+# called with -m flag
+
+# include __main__ guard to prevent main() from being called twice from console
+# script entrypoint
+if __name__ == '__main__':
+    main()

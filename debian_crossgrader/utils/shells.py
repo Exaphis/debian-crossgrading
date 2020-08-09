@@ -6,14 +6,21 @@ import ctypes
 import ctypes.util
 
 def list_shells():
-    """Generator outputting valid user shell paths"""
+    """Return a list of valid user shell paths"""
     libc = ctypes.CDLL(ctypes.util.find_library('c'))
+
     getusershell = libc.getusershell
     getusershell.restype = ctypes.c_char_p
+
     libc.setusershell()
+
+    out = []
     while True:
         shell = getusershell()
         if shell is None:
             break
-        yield shell.decode('utf-8')
+        out.append(shell.decode('utf-8'))
+
     libc.endusershell()
+
+    return out

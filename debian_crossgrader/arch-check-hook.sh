@@ -9,7 +9,9 @@ check_file_arch () {
     local arch_match arch_match_output
     arch_match_output=$(python3 -c "import sys; from debian_crossgrader.utils.elf import e_machine; val=e_machine('${1}'); sys.exit(0 if val is None else val != e_machine('/usr/bin/dpkg'))")
     arch_match=${?}
-    echo "${arch_match_output}" | sed 's/^/crossgrader initramfs hook: /'
+
+    # do not print trailing newline to prevent unnecessary prepending
+    printf '%s' "${arch_match_output}" | sed 's/^/crossgrader initramfs hook: /'
 
     if [ ${arch_match} -ne 0 ]; then
         echo "crossgrader initramfs hook: (WARNING) initramfs binary ${1} might not be in the correct architecture."
