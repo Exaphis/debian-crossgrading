@@ -559,6 +559,7 @@ class Crossgrader:
 
             # some packages (python3-apt) refuses to mark as install for some reason
             # fetch them individually later
+            # TODO: figure out why this happens (blocking crossgrade of fish in first stage)
             if not target.marked_install:
                 print(('Could not mark {} for install, '
                        'downloading binary directly.').format(target.fullname))
