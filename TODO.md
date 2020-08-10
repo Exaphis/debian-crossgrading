@@ -1,4 +1,4 @@
-Incomplete
+ncomplete
 ---
 #### Miscellaneous
 - [ ] Testing with different init system
@@ -7,10 +7,8 @@ Incomplete
 - [ ] Testing on non-usrmerge systems
 - [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
-- [ ] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
 - [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
-- [ ] Stop using elf-arch in initramfs hook (arch-test doesn't have it in Stretch)
 
 Completed
 ---
@@ -50,6 +48,9 @@ Completed
     - [x] Testing...
 - [x] Testing with non-64-bit target (i.e. amd64 to i386)
 - [x] Automate initial crossgrade of qemu-user-static/binfmt-support after reboot to target arch
+- [x] Stop using elf-arch in initramfs hook (arch-test doesn't have it in Stretch)
+- [x] Crossgrade current shell
+- [x] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
 
 #### Packaging
 - [x] Packaging crossgrade tool

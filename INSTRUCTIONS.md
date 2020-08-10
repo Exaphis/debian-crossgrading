@@ -32,6 +32,9 @@ Packages saved.
 
 After crossgrading, run `crossgrade-package-check` again to verify that all packages were actually crossgraded.
 
+#### Crossgrading bootloader
+
+
 Special cases
 ---
 #### Crossgrading over SSH
@@ -133,7 +136,6 @@ The crossgrade is complete!
 # dpkg --add-architecture amd64
 # apt update
 # apt install linux-image-amd64:amd64 grub-efi:amd64
-# git clone https://salsa.debian.org/crossgrading-team/debian-crossgrading.git
 # crossgrader amd64
 # update-initramfs -u -k all  # might take a long time
 # reboot
