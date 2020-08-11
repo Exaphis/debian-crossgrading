@@ -553,7 +553,6 @@ class Crossgrader:
         # use python-apt to cache .debs for package and dependencies
         # because apt-get --download-only install will not download
         # if it can't find a good way to resolve dependencies
-        unmarked = []
         for target in targets:
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
 
@@ -563,15 +562,13 @@ class Crossgrader:
             if not target.marked_install:
                 print(('Could not mark {} for install, '
                        'downloading binary directly.').format(target.fullname))
-                unmarked.append(target)
+                target.mark_install(auto_fix=False, auto_inst=False)
+                assert target.marked_install, \
+                       '{} not marked as install despite no auto_inst'.format(target.fullname)
 
         __, __, free_space = shutil.disk_usage(self.APT_CACHE_DIR)
 
         required_space = 0
-        for target in unmarked:
-            required_space += target.candidate.installed_size
-            required_space += target.candidate.size
-
         for package in self._apt_cache:
             if package.marked_install:
                 required_space += package.candidate.installed_size
@@ -581,9 +578,6 @@ class Crossgrader:
             raise NotEnoughSpaceError(
                 '{} bytes free but {} bytes required'.format(free_space, required_space)
             )
-
-        for target in unmarked:
-            target.candidate.fetch_binary(self.APT_CACHE_DIR)
 
         # fetch_archives() throws a more detailed error if a specific package
         # could not be downloaded for some reason.
