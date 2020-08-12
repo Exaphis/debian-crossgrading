@@ -48,6 +48,7 @@ Completed
     - [x] Testing...
 - [x] Testing with non-64-bit target (i.e. amd64 to i386)
 - [x] Automate initial crossgrade of qemu-user-static/binfmt-support after reboot to target arch
+- [x] Testing on Stretch
 - [x] Stop using elf-arch in initramfs hook (arch-test doesn't have it in Stretch)
 - [x] Crossgrade current shell
 - [x] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
