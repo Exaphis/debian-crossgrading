@@ -2,6 +2,7 @@ debian-crossgrader (0.0.3) UNRELEASED; urgency=medium
 
   * Remove elf-arch usage from arch-check-hook.sh
   * Crossgrade login shells in first stage
+  * Remove initramfs arch check hook in cleanup
 
  -- Kevin Wu <kevin@kevinniuwu.com>  Thu, 06 Aug 2020 18:23:19 -0700
 

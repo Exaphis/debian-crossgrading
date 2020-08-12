@@ -16,7 +16,7 @@ def first_stage(args):
     """
     with Crossgrader(args.target_arch) as crossgrader:
         if args.packages:
-            targets = crossgrader.find_package_objs(args.packages)
+            targets = crossgrader.find_package_objs(args.packages, default_arch=args.target_arch)
         else:
             targets = crossgrader.list_first_stage_targets(
                 ignore_initramfs_remnants=args.force_initramfs,
@@ -41,7 +41,8 @@ def first_stage(args):
             crossgrade_qemu = crossgrader.qemu_installed or crossgrader.non_supported_arch
             if crossgrade_qemu and not qemu_path_exists:
                 print('Saving qemu-user-static debs for second stage...')
-                qemu_pkgs = crossgrader.find_package_objs(['qemu-user-static', 'binfmt-support'])
+                qemu_pkgs = crossgrader.find_package_objs(['qemu-user-static', 'binfmt-support'],
+                                                          default_arch=args.target_arch)
                 crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
                 print('qemu-user-static saved.')
 
@@ -165,6 +166,12 @@ def cleanup():
         print('crossgrader data folder removed.')
     else:
         print('crossgrader data folder did not exist.')
+
+    print('Removing initramfs binary architecture check hook...')
+    if crossgrader.remove_initramfs_arch_check():
+        print('Hook successfully removed.')
+    else:
+        print('Hook could not be removed.')
 
 
 def main():

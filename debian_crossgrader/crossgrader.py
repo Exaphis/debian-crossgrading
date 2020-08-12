@@ -249,11 +249,19 @@ class Crossgrader:
             True if the hook was successfully removed, False otherwise.
         """
 
+        if not os.path.isfile(self.INITRAMFS_FUNCTIONS_PATH):
+            print('hook-functions file does not exist.')
+            return False
+
         if not os.path.isfile(self.initramfs_functions_backup_path):
             print('Backup file does not exist.')
             return False
-        if not os.path.isfile(self.INITRAMFS_FUNCTIONS_PATH):
-            print('hook-functions file does not exist.')
+
+        with open(self.INITRAMFS_FUNCTIONS_PATH, 'r') as functions_file:
+            functions_lines = functions_file.read().splitlines()
+
+        if '# begin arch-check-hook' not in functions_lines:
+            print('arch check hook not installed.')
             return False
 
         shutil.copy2(self.initramfs_functions_backup_path, self.INITRAMFS_FUNCTIONS_PATH)
