@@ -22,6 +22,7 @@ Notes before crossgrading
 
 Crossgrading a Debian install is currently experimental and prone to breakages. Please, please, **please** back up your data before continuing!
 
+
 #### Saving a list of currently installed packages
 
 ```
@@ -32,8 +33,12 @@ Packages saved.
 
 After crossgrading, run `crossgrade-package-check` again to verify that all packages were actually crossgraded.
 
-#### Crossgrading bootloader
 
+#### Crossgrading the bootloader
+
+For crossgrades to non-natively supported architectures (e.g. arm64 to amd64), you must crossgrade the bootloader in the first stage. This can be done by installing the appropriate bootloader package in the target architecture while installing the target architecture's kernel.
+
+For example, if using `grub` and crossgrading from arm64 to amd64, you should install `grub-pc:amd64` or `grub-efi-amd64` depending on if you are using BIOS or UEFI firmware on the target amd64 machine.
 
 Special cases
 ---
