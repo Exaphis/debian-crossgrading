@@ -219,6 +219,7 @@ class Crossgrader:
 
         shutil.copy2(self.INITRAMFS_FUNCTIONS_PATH, self.initramfs_functions_backup_path)
         assert os.path.isfile(self.initramfs_functions_backup_path)
+        print('Backed up hook-functions to {}'.format(self.initramfs_functions_backup_path))
 
         with open(self.arch_check_hook_path, 'r') as arch_hook_file:
             arch_hook_lines = arch_hook_file.read().splitlines()
