@@ -168,7 +168,7 @@ def cleanup():
         print('crossgrader data folder did not exist.')
 
     print('Removing initramfs binary architecture check hook...')
-    if crossgrader.remove_initramfs_arch_check():
+    if Crossgrader.remove_initramfs_arch_check():
         print('Hook successfully removed.')
     else:
         print('Hook could not be removed.')
