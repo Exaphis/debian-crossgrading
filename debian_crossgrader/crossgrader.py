@@ -76,6 +76,8 @@ class Crossgrader:
             by the current CPU.
         qemu_installed: A boolean indicated whether or not qemu-user-static is installed.
 
+        _apt_cache: python3-apt cache
+
     Class attributes:
         initramfs_functions_backup_path: Path to the backup of hook-functions.
         arch_check_hook_path: Path to the arch-check-hook.sh shell script.
@@ -239,7 +241,8 @@ class Crossgrader:
 
         return True
 
-    def remove_initramfs_arch_check(self):
+    @staticmethod
+    def remove_initramfs_arch_check():
         """Restores the contents of hook-functions.
 
         This function should be called at the end of the crossgrade process.
@@ -250,23 +253,24 @@ class Crossgrader:
             True if the hook was successfully removed, False otherwise.
         """
 
-        if not os.path.isfile(self.INITRAMFS_FUNCTIONS_PATH):
+        if not os.path.isfile(Crossgrader.INITRAMFS_FUNCTIONS_PATH):
             print('hook-functions file does not exist.')
             return False
 
-        if not os.path.isfile(self.initramfs_functions_backup_path):
+        if not os.path.isfile(Crossgrader.initramfs_functions_backup_path):
             print('Backup file does not exist.')
             return False
 
-        with open(self.INITRAMFS_FUNCTIONS_PATH, 'r') as functions_file:
+        with open(Crossgrader.INITRAMFS_FUNCTIONS_PATH, 'r') as functions_file:
             functions_lines = functions_file.read().splitlines()
 
         if '# begin arch-check-hook' not in functions_lines:
             print('arch check hook not installed.')
             return False
 
-        shutil.copy2(self.initramfs_functions_backup_path, self.INITRAMFS_FUNCTIONS_PATH)
-        os.remove(self.initramfs_functions_backup_path)
+        shutil.copy2(Crossgrader.initramfs_functions_backup_path,
+                     Crossgrader.INITRAMFS_FUNCTIONS_PATH)
+        os.remove(Crossgrader.initramfs_functions_backup_path)
         return True
 
     @staticmethod
@@ -555,6 +559,7 @@ class Crossgrader:
             target_dir: If target_dir set, move all cached .debs the given directory.
         """
 
+
         # clean /var/cache/apt/archives for download
         # is there a python-apt function for this?
         subprocess.check_call(['apt-get', 'clean'])
@@ -566,11 +571,10 @@ class Crossgrader:
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
 
             # some packages (python3-apt) refuses to mark as install for some reason
-            # fetch them individually later
-            # TODO: figure out why this happens (blocking crossgrade of fish in first stage)
+            # TODO: try crossgrading dpkg/apt and then downloading the other packages?
             if not target.marked_install:
                 print(('Could not mark {} for install, '
-                       'downloading binary directly.').format(target.fullname))
+                       'fixing manually.').format(target.fullname))
                 target.mark_install(auto_fix=False, auto_inst=False)
                 assert target.marked_install, \
                        '{} not marked as install despite no auto_inst'.format(target.fullname)
