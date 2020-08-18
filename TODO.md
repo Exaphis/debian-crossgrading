@@ -9,6 +9,7 @@ ncomplete
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
 - [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
+- [ ] Crossgrade dpkg/apt first before downloading
 
 Completed
 ---
