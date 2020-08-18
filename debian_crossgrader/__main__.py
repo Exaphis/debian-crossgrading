@@ -46,9 +46,17 @@ def first_stage(args):
                 crossgrader.cache_package_debs(qemu_pkgs, crossgrader.qemu_deb_path)
                 print('qemu-user-static saved.')
 
-            crossgrader.cache_package_debs(targets)
+            if args.download_only:
+                crossgrader.cache_package_debs(targets)
+            else:
+                # crossgrade dpkg/apt for correct crossgrading of Architecture: all packages that
+                # aren't marked M-A: foreign
+                crossgrader.cache_package_debs(
+                    crossgrader.find_package_objs(['dpkg', 'apt', 'python3', 'python3-apt'])
+                )
+                crossgrader.install_packages(fix_broken=False)
 
-            if not args.download_only:
+                crossgrader.cache_package_debs(targets)
                 # fix_broken should be disabled for first stage so apt doesn't
                 # decide to uninstall some necessary packages
                 crossgrader.install_packages(fix_broken=False)
