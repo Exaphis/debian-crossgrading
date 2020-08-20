@@ -571,7 +571,6 @@ class Crossgrader:
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
 
             # some packages (python3-apt) refuses to mark as install for some reason
-            # TODO: try crossgrading dpkg/apt and then downloading the other packages?
             if not target.marked_install:
                 print(('Could not mark {} for install, '
                        'fixing manually.').format(target.fullname))

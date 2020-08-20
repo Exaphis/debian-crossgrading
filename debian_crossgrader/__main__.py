@@ -52,7 +52,8 @@ def first_stage(args):
                 # crossgrade dpkg/apt for correct crossgrading of Architecture: all packages that
                 # aren't marked M-A: foreign
                 crossgrader.cache_package_debs(
-                    crossgrader.find_package_objs(['dpkg', 'apt', 'python3', 'python3-apt'])
+                    crossgrader.find_package_objs(['dpkg', 'apt', 'python3', 'python3-apt'],
+                                                  default_arch=args.target_arch)
                 )
                 crossgrader.install_packages(fix_broken=False)
 
