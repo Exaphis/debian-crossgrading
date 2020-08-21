@@ -568,6 +568,9 @@ class Crossgrader:
         # because apt-get --download-only install will not download
         # if it can't find a good way to resolve dependencies
         for target in targets:
+            if target.is_installed:
+                continue
+
             target.mark_install(auto_fix=False)  # do not try to fix broken packages
 
             # some packages (python3-apt) refuses to mark as install for some reason
