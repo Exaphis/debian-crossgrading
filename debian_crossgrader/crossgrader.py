@@ -730,6 +730,8 @@ class Crossgrader:
             if architecture not in ('all', self.target_arch):
                 targets.add(package.shortname)
 
+        targets.add('sudo')
+
         return self.find_package_objs(targets, default_arch=self.target_arch,
                                       ignore_unavailable_targets=ignore_unavailable_targets,
                                       ignore_installed=True)
