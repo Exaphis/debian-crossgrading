@@ -51,11 +51,20 @@ def first_stage(args):
             else:
                 # crossgrade dpkg/apt for correct crossgrading of Architecture: all packages that
                 # aren't marked M-A: foreign
-                crossgrader.cache_package_debs(
-                    crossgrader.find_package_objs(['dpkg', 'apt', 'python3', 'python3-apt'],
-                                                  default_arch=args.target_arch)
+                pkg_packages = crossgrader.find_package_objs(
+                    ['dpkg', 'apt', 'python3', 'python3-apt'],
+                    default_arch=args.target_arch
                 )
-                crossgrader.install_packages(fix_broken=False)
+
+                if not all(pkg.is_installed for pkg in pkg_packages):
+                    crossgrader.cache_package_debs(pkg_packages)
+                    crossgrader.install_packages(fix_broken=False)
+
+                    # Force restart of the crossgrader so new version of python3
+                    # and python3-apt is used
+                    print('Crossgraded dpkg, apt, python3, and python3-apt.')
+                    print('Please re-run the first stage to continue the crossgrade.')
+                    return
 
                 crossgrader.cache_package_debs(targets)
                 # fix_broken should be disabled for first stage so apt doesn't
