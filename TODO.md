@@ -9,6 +9,8 @@ ncomplete
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
 - [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
+- [ ] Maintain package hold status
+- [ ] Create manpage for binaries
 
 Completed
 ---
@@ -41,7 +43,8 @@ Completed
     - ~~How to get architecture name outputted by `file` reliably?~~
         - ~~E.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64~~
         - ~~Solution: get output of `file /bin/dpkg`~~
-    - Use arch-test's elf-arch to get the architecture of copied binaries and check if it matches the target architecture
+    - ~~Use arch-test's elf-arch to get the architecture of copied binaries and check if it matches the target architecture~~ (arch-test's elf-arch not available in stretch)
+    - Check ELF e_machine entry
 - [x] Document crossgrade between architectures not supported on the same CPU
     - Still can be improved
 - [x] Fixing all packages being marked as manually installed after crossgrade
