@@ -9,7 +9,6 @@ ncomplete
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
 - [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
-- [ ] Crossgrade dpkg/apt first before downloading
 
 Completed
 ---
@@ -53,6 +52,7 @@ Completed
 - [x] Stop using elf-arch in initramfs hook (arch-test doesn't have it in Stretch)
 - [x] Crossgrade current shell
 - [x] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
+- [x] Crossgrade dpkg/apt first before downloading
 
 #### Packaging
 - [x] Packaging crossgrade tool
