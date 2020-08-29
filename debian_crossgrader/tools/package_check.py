@@ -68,14 +68,19 @@ def compare_package_list(input_file):
                   file=sys.stderr)
 
 
-def main():
-    """Main function of the script"""
+def get_argparser():
+    """Returns a ArgumentParser object used in main()."""
     parser = argparse.ArgumentParser(
         description='Checks if your installed packages were all successfully crossgraded.'
     )
     parser.add_argument('--cleanup', action='store_true',
                         help=('Remove any package checker data. Next time the checker is run, '
                               'the package list will be regenerated.'))
+    return parser
+
+def main():
+    """Main function of the script"""
+    parser = get_argparser()
     args = parser.parse_args()
 
     app_name = 'debian_crossgrader_package_check'

@@ -1,0 +1,23 @@
+.TH crossgrade-package-check "1" Manual
+.SH NAME
+crossgrade-package-check \- check if any packages weren't crossgraded
+.SH SYNOPSIS
+.B crossgrade-package-check
+[-h] [--cleanup]
+.SH DESCRIPTION
+Checks if your installed packages were all successfully crossgraded.
+.SH OPTIONS
+
+.TP
+\fB\-\-cleanup\fR
+Remove any package checker data. Next time the checker is run, the package
+.br
+list will be regenerated.
+
+.SH AUTHORS
+.B crossgrader
+was written by Kevin Wu <kevin@kevinniuwu.com>.
+.SH DISTRIBUTION
+The latest version of crossgrader may be downloaded from
+.UR https://salsa.debian.org/crossgrading\-team/debian\-crossgrading
+.UE

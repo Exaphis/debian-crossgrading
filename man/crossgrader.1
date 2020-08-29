@@ -1,0 +1,70 @@
+.TH crossgrader "1" Manual
+.SH NAME
+crossgrader \- change the architecture of your Debian installation
+.SH SYNOPSIS
+.B crossgrader
+[-h] [--second-stage] [--third-stage OLD_ARCH] [--download-only] [--install-from [INSTALL_FROM]] [--force-unavailable] [--force-initramfs] [-f] [-p PACKAGES [PACKAGES ...]] [--dry-run] [--cleanup] target_arch
+.SH OPTIONS
+.TP
+\fBtarget_arch\fR
+Target architecture of the crossgrade
+
+.TP
+\fB\-\-second\-stage\fR
+Run the second stage of the crossgrading process (crossgrading all remaining
+.br
+packages)
+
+.TP
+\fB\-\-third\-stage\fR OLD_ARCH
+Run the third stage of the crossgrading process (removing all packages under
+.br
+specified arch)
+
+.TP
+\fB\-\-download\-only\fR
+Perform target package listing and download, but not installation
+
+.TP
+\fB\-\-install\-from\fR [\fI\,INSTALL_FROM\/\fR]
+Perform .deb installation from a specified location (default:
+.br
+/var/cache/apt/archives), but not package listing and download
+
+.TP
+\fB\-\-force\-unavailable\fR
+Force crossgrade even if not all packages to be crossgraded are available in
+.br
+the target architecture
+
+.TP
+\fB\-\-force\-initramfs\fR
+Force crossgrade even if not all initramfs hooks could be crossgraded
+
+.TP
+\fB\-f\fR, \fB\-\-force\-all\fR
+Equivalent to \-\-force\-install \-\-force\-initramfs
+
+.TP
+\fB\-p\fR \fI\,PACKAGES\/\fR [\fI\,PACKAGES\/\fR ...], \fB\-\-packages\fR \fI\,PACKAGES\/\fR [\fI\,PACKAGES\/\fR ...]
+Crossgrade the subsequent package names and nothing else. If used with
+.br
+\-\-third\-stage, the subsequent packages will be excluded from removal
+
+.TP
+\fB\-\-dry\-run\fR
+Run the crossgrader, but do not change anything
+
+.TP
+\fB\-\-cleanup\fR
+Clean up any extra files stored by the crossgrader. The given architecture
+.br
+will be ignored.
+
+.SH AUTHORS
+.B crossgrader
+was written by Kevin Wu <kevin@kevinniuwu.com>.
+.SH DISTRIBUTION
+The latest version of crossgrader may be downloaded from
+.UR https://salsa.debian.org/crossgrading\-team/debian\-crossgrading
+.UE

@@ -192,8 +192,11 @@ def cleanup():
         print('Hook could not be removed.')
 
 
-def main():
-    """Crossgrade driver"""
+def get_argparser():
+    """Returns the ArgumentParser object used in main.
+
+    Used in main() and by python3-argparse-manpage to generate the manpage for crossgrader.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('target_arch', help='Target architecture of the crossgrade')
     parser.add_argument('--second-stage',
@@ -235,6 +238,12 @@ def main():
                         help=('Clean up any extra files stored by the crossgrader. '
                               'The given architecture will be ignored.'),
                         action='store_true')
+    return parser
+
+
+def main():
+    """Crossgrade driver"""
+    parser = get_argparser()
     args = parser.parse_args()
 
     if args.force_all:
