@@ -9,7 +9,7 @@ The official project can be found at https://summerofcode.withgoogle.com/project
 This package provides a tool to crossgrade (i.e. change the architecture) of a Debian install.
 It also provides a tool to check if all packages were successfully crossgraded.
 
-The crossgrader automatically handles binaries requiredby the initramfs,
+The crossgrader automatically handles binaries required by the initramfs,
 packages marked as automatically installed, and crossgrades to architectures
 not natively supported on the current CPU.
 

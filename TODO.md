@@ -10,7 +10,6 @@ ncomplete
 - [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
 - [ ] Maintain package hold status
-- [ ] Create manpage for binaries
 
 Completed
 ---
@@ -63,6 +62,7 @@ Completed
     - [x] Debian packaging
 - [x] Add qemu-user-static to depends
 - [x] Close ITP bug (966533)
+- [x] Create manpage for binaries
 
 
 #### Supporting Debian Jessie
