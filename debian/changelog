@@ -1,4 +1,4 @@
-debian-crossgrader (0.0.3) UNRELEASED; urgency=medium
+debian-crossgrader (0.0.3) unstable; urgency=medium
 
   * Remove elf-arch usage from arch-check-hook.sh
   * Crossgrade login shells in first stage
