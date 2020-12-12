@@ -1,3 +1,10 @@
+debian-crossgrader (0.0.3+nmu2) unstable; urgency=medium
+
+  * NMU
+  * *Really* do the source-only upload this time... :-/
+
+ -- Steve McIntyre <93sam@debian.org>  Sat, 12 Dec 2020 21:22:05 +0000
+
 debian-crossgrader (0.0.3+nmu1) unstable; urgency=medium
 
   * NMU
