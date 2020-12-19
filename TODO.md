@@ -1,15 +1,23 @@
-ncomplete
+Incomplete
 ---
-#### Miscellaneous
+#### Testing
 - [ ] Testing with different init system
 - [ ] Investigate why packages like transmission-gtk are being autoremoved after i386 to amd64
 - [ ] Investigate why initramfs build is failing with plymouth (libpango-1.0.so is missing) and find how to fix
 - [ ] Testing on non-usrmerge systems
 - [ ] Testing with non-amd64 target (i.e. mipsel to mips64el, amd64 to arm64)
 - [ ] Are there initial ramdisk hooks outside of `/usr/share/initramfs-tools/hooks`? `/etc/initramfs-tools/hooks`?
-- [ ] Is qemu-user OK to use or will the libraries be too much?
 - [ ] Testing with /home, /var, /tmp on different partitions
+
+#### Functionality
+- [ ] Log everything during crossgrade
 - [ ] Maintain package hold status
+- [ ] Configurable crossgrader-package-check output location
+- [ ] Output summary to stdout in crossgrader-package-check
+
+#### Misc
+- [ ] Show asciicasts more prominently (in crossgrader-doc package?)
+- [ ] Install README.md and INSTRUCTIONS.md to /usr/share/doc/crossgrader
 
 Completed
 ---
