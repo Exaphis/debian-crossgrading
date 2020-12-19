@@ -18,6 +18,20 @@ After the third stage, `FROM_ARCH` can be removed from dpkg to complete the cros
 Notes before crossgrading
 ---
 
+#### dpkg/APT error messages
+
+The crossgrader will spit out many error messages from dpkg. This is normal and can usually be safely ignored.
+
+**DO NOT** use dpkg/APT manually while crossgrader is running; this may cause breakages.
+
+#### Handling `xxx: ambiguous package name xxx with more than one installed instance` during package removal
+
+The error is caused by [#812228](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=812228).
+
+This error commonly occurs while crossgrading the packages `python3-pil` and `python3-cairo`. crossgrader handles these situations by deleting the package's prerm scripts and trying to remove the package again.
+
+Another option to crossgrade the packages is to manually edit the prerm file and specify the architecture of the package in the calls to `dpkg-query`.
+
 #### Backup the system
 
 Crossgrading a Debian install is currently experimental and prone to breakages. Please, please, **please** back up your data before continuing!
@@ -62,8 +76,7 @@ Common usage
 ##### Setting up the crossgrader
 
 ```
-# dpkg -i crossgrader_0.0.2_all.deb
-# apt -f install
+# apt install ./crossgrader_0.0.2_all.deb
 ```
 
 ##### Adding the new architecture
@@ -79,6 +92,8 @@ Common usage
 # apt install linux-image-amd64:amd64
 # reboot
 ```
+
+Ensure you boot to the correct kernel. In GRUB, the option to boot to the new kernel will be located in Advanced options.
 
 ```
 # uname -a
