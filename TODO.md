@@ -17,8 +17,6 @@ Incomplete
 
 #### Misc
 - [ ] Show asciicasts more prominently (in crossgrader-doc package?)
-- [ ] Install README.md and INSTRUCTIONS.md to /usr/share/doc/crossgrader
-- [ ] Bug#976433 - include Vcs fields in debian/control
 
 Completed
 ---
@@ -46,7 +44,7 @@ Completed
     - [x] Be able to to manually specify packages to crossgrade in script
     - [x] Second-stage functionality - crossgrading remaining packages
 
-#### Miscellaneous
+#### Misc
 - [x] Initramfs binary arch verification
     - ~~How to get architecture name outputted by `file` reliably?~~
         - ~~E.g. amd64 (dpkg) -> x86-64 (file), arm64 -> ARM aarch64~~
@@ -64,6 +62,8 @@ Completed
 - [x] Crossgrade current shell
 - [x] Automatically crossgrade dependencies of crossgrader instead of explicitly crossgrading python3 and python-apt
 - [x] Crossgrade dpkg/apt first before downloading
+- [x] Install README.md and INSTRUCTIONS.md to /usr/share/doc/crossgrader
+- [x] Bug#976433 - include Vcs fields in debian/control
 
 #### Packaging
 - [x] Packaging crossgrade tool
