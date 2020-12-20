@@ -18,6 +18,7 @@ Incomplete
 #### Misc
 - [ ] Show asciicasts more prominently (in crossgrader-doc package?)
 - [ ] Install README.md and INSTRUCTIONS.md to /usr/share/doc/crossgrader
+- [ ] Bug#976433 - include Vcs fields in debian/control
 
 Completed
 ---
