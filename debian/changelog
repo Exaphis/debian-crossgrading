@@ -1,3 +1,11 @@
+debian-crossgrader (0.0.4) UNRELEASED; urgency=medium
+
+  * Install README.md, INSTRUCTIONS.md, and TODO.md
+    to /usr/share/doc/crossgrader
+  * Add Vcs-Browser and Vcs-Git fields in debian/control (closes: #976433)
+
+ -- Kevin Wu <kevin@kevinniuwu.com>  Sun, 20 Dec 2020 06:01:11 +0000
+
 debian-crossgrader (0.0.3+nmu2) unstable; urgency=medium
 
   * NMU
