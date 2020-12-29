@@ -31,6 +31,9 @@
 
 - [ ] Output summary to stdout in crossgrader-package-check
 
+- [ ] Add --force-remove-protected to third stage purge to allow removal of
+  protected packages (only if dpkg version >= 1.20.1)
+
 ### Misc
 
 - [ ] Show asciicasts more prominently (in crossgrader-doc package?)
