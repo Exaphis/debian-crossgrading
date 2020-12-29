@@ -40,6 +40,9 @@
 
 - [ ] Update <https://wiki.debian.org/CrossGrading>
 
+- [ ] Add instructions to manually mark M-A: Foreign packages (e.g. python3-apt
+  crossgrade fails because it is not marked M-A: foreign, see [Salsa issue #3][1])
+
 ## Completed
 
 ### arm64 -> amd64 crossgrade
@@ -134,3 +137,5 @@
   amount of RAM available?
 
 - How can we point the bootloader to the right kernel/initramfs without user input?
+
+[1]: https://salsa.debian.org/crossgrading-team/debian-crossgrading/-/issues/3
